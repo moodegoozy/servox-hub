@@ -1,11 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --primary: #1e40af;
-  --primary-light: #3b82f6;
-  --primary-dark: #0f2847;
-  --primary-glow: rgba(59, 130, 246, 0.15);
-  --secondary: #06b6d4;
+  --primary: #ea580c;
+  --primary-light: #f97316;
+  --primary-dark: #9a3412;
+  --primary-glow: rgba(249, 115, 22, 0.15);
+  --secondary: #fb923c;
   --success: #10b981;
   --success-bg: #d1fae5;
   --success-text: #065f46;
@@ -15,7 +15,7 @@
   --danger: #ef4444;
   --danger-bg: #fee2e2;
   --danger-text: #991b1b;
-  --bg: linear-gradient(135deg, #f0f4ff 0%, #f0fdf4 50%, #faf5ff 100%);
+  --bg: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fef3c7 100%);
   --bg-flat: #f8fafc;
   --card: #ffffff;
   --card-hover: #f8fafc;
@@ -39,11 +39,11 @@
 
 /* ===== DARK MODE ===== */
 [data-theme="dark"] {
-  --primary: #6366f1;
-  --primary-light: #818cf8;
-  --primary-dark: #312e81;
-  --primary-glow: rgba(99, 102, 241, 0.2);
-  --secondary: #22d3ee;
+  --primary: #f97316;
+  --primary-light: #fb923c;
+  --primary-dark: #c2410c;
+  --primary-glow: rgba(249, 115, 22, 0.25);
+  --secondary: #fdba74;
   --success: #34d399;
   --success-bg: rgba(52, 211, 153, 0.15);
   --success-text: #6ee7b7;
@@ -61,12 +61,12 @@
   --input-focus-bg: rgba(51, 65, 85, 0.5);
   --text: #e2e8f0;
   --text-light: #94a3b8;
-  --border: rgba(99, 102, 241, 0.12);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.06);
-  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.08);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.1);
+  --border: rgba(249, 115, 22, 0.15);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(249, 115, 22, 0.08);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(249, 115, 22, 0.1);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(249, 115, 22, 0.12);
   --glass: rgba(15, 22, 41, 0.9);
-  --glass-border: rgba(99, 102, 241, 0.12);
+  --glass-border: rgba(249, 115, 22, 0.15);
   --header-blur: blur(24px) saturate(150%);
   color-scheme: dark;
 }
@@ -75,7 +75,7 @@
 [data-theme="dark"] body {
   background: var(--bg);
   background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.08), transparent),
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(249, 115, 22, 0.08), transparent),
     radial-gradient(ellipse 60% 40% at 80% 50%, rgba(14, 165, 233, 0.04), transparent);
 }
 
@@ -156,13 +156,13 @@
 /* Invoice mini btn */
 [data-theme="dark"] .invoice-mini-btn {
   background: transparent !important;
-  border-color: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(249, 115, 22, 0.15) !important;
   color: var(--text-light) !important;
   opacity: 0.5;
 }
 
 [data-theme="dark"] .invoice-mini-btn:hover {
-  background: rgba(99, 102, 241, 0.1) !important;
+  background: rgba(249, 115, 22, 0.1) !important;
   border-color: var(--primary) !important;
   color: var(--primary-light) !important;
   opacity: 1;
@@ -190,15 +190,15 @@
 }
 
 [data-theme="dark"] .yearly-table tbody tr:nth-child(even) {
-  background: rgba(99, 102, 241, 0.03) !important;
+  background: rgba(249, 115, 22, 0.03) !important;
 }
 
 [data-theme="dark"] .yearly-table tbody tr:hover {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
 }
 
 [data-theme="dark"] .yearly-table tbody tr:nth-child(even):hover {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
 }
 
 [data-theme="dark"] .yearly-table tbody tr:nth-child(even) .sticky-col,
@@ -214,17 +214,17 @@
 [data-theme="dark"] .yearly-table tbody tr:hover .city-col,
 [data-theme="dark"] .yearly-table tbody tr:hover .subscription-col,
 [data-theme="dark"] .yearly-table tbody tr:hover .total-col {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
 }
 
 /* ========== REMAINING: Every other white/light bg NOT yet covered ========== */
 
 /* Revenue table */
 [data-theme="dark"] .revenues-table thead {
-  background: linear-gradient(135deg, #312e81, #4338ca) !important;
+  background: linear-gradient(135deg, #9a3412, #ea580c) !important;
 }
 [data-theme="dark"] .revenues-table tbody tr:hover {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
 }
 [data-theme="dark"] .revenues-table td {
   border-color: var(--border) !important;
@@ -233,7 +233,7 @@
 
 /* MikroTik table */
 [data-theme="dark"] .mikro-table th {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
   color: var(--text-light) !important;
   border-color: var(--border) !important;
 }
@@ -242,7 +242,7 @@
   color: var(--text) !important;
 }
 [data-theme="dark"] .mikro-table tbody tr:hover {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
 }
 [data-theme="dark"] .mikro-table tbody tr.disabled-row {
   background: rgba(248, 113, 113, 0.06) !important;
@@ -273,7 +273,7 @@
   color: var(--text-light) !important;
 }
 [data-theme="dark"] .cards-year-nav button:hover {
-  background: rgba(99, 102, 241, 0.1) !important;
+  background: rgba(249, 115, 22, 0.1) !important;
   color: var(--primary-light) !important;
 }
 [data-theme="dark"] .cards-stat-avg {
@@ -289,14 +289,14 @@
   background: rgba(248, 113, 113, 0.15) !important;
 }
 [data-theme="dark"] .cards-table tfoot td {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
   border-color: var(--border) !important;
   color: var(--text) !important;
 }
 
 /* Suspend hover */
 [data-theme="dark"] .suspend-search-item:hover {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
 }
 
 /* Customer highlight animation */
@@ -306,7 +306,7 @@
 
 /* Customers DB table extras */
 [data-theme="dark"] .customers-db-table tbody tr:hover {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
 }
 [data-theme="dark"] .customers-db-table tbody tr.row-suspended {
   background: rgba(248, 113, 113, 0.06) !important;
@@ -327,7 +327,7 @@
 
 /* Search result item hover */
 [data-theme="dark"] .search-result-item:hover {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
 }
 
 /* DARK: Login */
@@ -337,20 +337,20 @@
 
 [data-theme="dark"] .login-card {
   background: rgba(15, 22, 41, 0.95);
-  border-color: rgba(99, 102, 241, 0.15);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border-color: rgba(249, 115, 22, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(249, 115, 22, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 [data-theme="dark"] .login-card input {
   background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(99, 102, 241, 0.15);
+  border-color: rgba(249, 115, 22, 0.15);
   color: var(--text);
 }
 
 [data-theme="dark"] .login-card input:focus {
   background: rgba(51, 65, 85, 0.5);
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
 }
 
 [data-theme="dark"] .login-card input::placeholder {
@@ -426,7 +426,7 @@
 [data-theme="dark"] .city-card.active {
   background: var(--card-hover) !important;
   border-color: var(--primary) !important;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);
 }
 
 [data-theme="dark"] .customer-card:hover,
@@ -469,15 +469,15 @@
 [data-theme="dark"] .expenses-table tbody tr:hover td,
 [data-theme="dark"] .suspended-table tbody tr:hover td,
 [data-theme="dark"] .due-invoices-table tbody tr:hover td {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
 }
 
 [data-theme="dark"] .yearly-table tbody tr:nth-child(even) td {
-  background: rgba(99, 102, 241, 0.03);
+  background: rgba(249, 115, 22, 0.03);
 }
 
 [data-theme="dark"] .yearly-table tbody tr:nth-child(even):hover td {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
 }
 
 [data-theme="dark"] .customers-db-table tbody tr.row-suspended {
@@ -495,11 +495,11 @@
 }
 
 [data-theme="dark"] .yearly-table thead {
-  background: linear-gradient(135deg, #312e81, #4338ca) !important;
+  background: linear-gradient(135deg, #9a3412, #ea580c) !important;
 }
 
 [data-theme="dark"] .customers-db-table th {
-  background: linear-gradient(135deg, #312e81, #4338ca) !important;
+  background: linear-gradient(135deg, #9a3412, #ea580c) !important;
 }
 
 /* DARK: Table header backgrounds */
@@ -512,7 +512,7 @@
 }
 
 [data-theme="dark"] .discounted-table th {
-  background: linear-gradient(135deg, #312e81, #4338ca) !important;
+  background: linear-gradient(135deg, #9a3412, #ea580c) !important;
 }
 
 [data-theme="dark"] .due-invoices-table thead {
@@ -520,7 +520,7 @@
 }
 
 [data-theme="dark"] .expenses-mini-table th {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
   color: var(--text-light) !important;
 }
 
@@ -588,7 +588,7 @@
 [data-theme="dark"] .payment-btn:hover {
   border-color: var(--primary) !important;
   color: var(--primary-light) !important;
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
 }
 
 [data-theme="dark"] .payment-btn.active {
@@ -641,7 +641,7 @@
 
 [data-theme="dark"] .search-result-item:hover,
 [data-theme="dark"] .suspend-search-item:hover {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
 }
 
 [data-theme="dark"] .result-details {
@@ -649,8 +649,8 @@
 }
 
 [data-theme="dark"] .result-city {
-  background: rgba(99, 102, 241, 0.12) !important;
-  color: #818cf8 !important;
+  background: rgba(249, 115, 22, 0.12) !important;
+  color: #fb923c !important;
 }
 
 [data-theme="dark"] .result-username {
@@ -708,8 +708,8 @@
 }
 
 [data-theme="dark"] .net-card.net.positive {
-  background: rgba(99, 102, 241, 0.08) !important;
-  border-color: rgba(99, 102, 241, 0.2) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
+  border-color: rgba(249, 115, 22, 0.2) !important;
 }
 
 [data-theme="dark"] .net-card.net.negative {
@@ -849,12 +849,12 @@
 
 /* DARK: Summary cards */
 [data-theme="dark"] .summary-card {
-  background: linear-gradient(135deg, #312e81, #4338ca) !important;
+  background: linear-gradient(135deg, #9a3412, #ea580c) !important;
 }
 
 /* DARK: Days badge */
 [data-theme="dark"] .days-badge {
-  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+  background: linear-gradient(135deg, #f97316, #4f46e5) !important;
 }
 
 /* DARK: Scrollbar */
@@ -868,12 +868,12 @@
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(249, 115, 22, 0.2);
   border-radius: 4px;
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(249, 115, 22, 0.35);
 }
 
 /* DARK: Cards tab */
@@ -918,7 +918,7 @@
 }
 
 [data-theme="dark"] .cards-table thead th {
-  background: rgba(99, 102, 241, 0.08) !important;
+  background: rgba(249, 115, 22, 0.08) !important;
   color: var(--text-light) !important;
   border-bottom-color: var(--border) !important;
 }
@@ -928,7 +928,7 @@
 }
 
 [data-theme="dark"] .cards-table tbody tr:nth-child(even) {
-  background: rgba(99, 102, 241, 0.03) !important;
+  background: rgba(249, 115, 22, 0.03) !important;
 }
 
 [data-theme="dark"] .cards-table tbody td {
@@ -939,7 +939,7 @@
 
 [data-theme="dark"] .cards-table tbody tr:hover,
 [data-theme="dark"] .cards-table tbody tr:hover td {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
 }
 
 [data-theme="dark"] .cards-row-number {
@@ -951,9 +951,9 @@
 }
 
 [data-theme="dark"] .cards-badge {
-  background: rgba(99, 102, 241, 0.12) !important;
-  color: #818cf8 !important;
-  border-color: rgba(99, 102, 241, 0.2) !important;
+  background: rgba(249, 115, 22, 0.12) !important;
+  color: #fb923c !important;
+  border-color: rgba(249, 115, 22, 0.2) !important;
 }
 
 [data-theme="dark"] .cards-row-value {
@@ -975,7 +975,7 @@
 }
 
 [data-theme="dark"] .cards-table tfoot td {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
   border-top-color: var(--border) !important;
   color: var(--text) !important;
 }
@@ -1009,7 +1009,7 @@
 
 /* DARK: Modal header in dark uses indigo */
 [data-theme="dark"] .modal-header {
-  background: linear-gradient(135deg, #312e81, #4338ca) !important;
+  background: linear-gradient(135deg, #9a3412, #ea580c) !important;
 }
 
 /* DARK: All remaining text color overrides */
@@ -1048,8 +1048,8 @@
 }
 
 [data-theme="dark"] .additional-routers-section {
-  background: rgba(99, 102, 241, 0.06) !important;
-  border-color: rgba(99, 102, 241, 0.12) !important;
+  background: rgba(249, 115, 22, 0.06) !important;
+  border-color: rgba(249, 115, 22, 0.12) !important;
 }
 
 [data-theme="dark"] .router-details .router-item {
@@ -1095,12 +1095,12 @@
 /* DARK: Highlight pulse animation */
 @keyframes highlightPulseDark {
   0% {
-    background-color: rgba(99, 102, 241, 0.15);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    background-color: rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
   }
   50% {
-    background-color: rgba(99, 102, 241, 0.15);
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+    background-color: rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.4);
   }
   100% {
     background-color: transparent;
@@ -1141,7 +1141,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #9a3412 70%, #1e3a5f 100%);
   position: relative;
   overflow: hidden;
 }
@@ -1153,7 +1153,7 @@ body {
   right: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, transparent 60%);
   border-radius: 50%;
   animation: floatOrb 15s ease-in-out infinite;
 }
@@ -1216,7 +1216,7 @@ body {
 .login-card h1 {
   font-size: 32px;
   font-weight: 800;
-  background: linear-gradient(135deg, #4338ca, #06b6d4);
+  background: linear-gradient(135deg, #ea580c, #fdba74);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1459,14 +1459,14 @@ body {
 }
 
 .payment-btn:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: #f97316;
+  color: #f97316;
 }
 
 .payment-btn.active {
-  background: #3b82f6;
+  background: #f97316;
   color: white;
-  border-color: #3b82f6;
+  border-color: #f97316;
 }
 
 .payment-btn.partial-active {
@@ -1532,14 +1532,14 @@ body {
 }
 
 .discount-type-btn:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: #f97316;
+  color: #f97316;
 }
 
 .discount-type-btn.active {
-  background: #3b82f6;
+  background: #f97316;
   color: white;
-  border-color: #3b82f6;
+  border-color: #f97316;
 }
 
 .discount-preview {
@@ -1619,7 +1619,7 @@ body {
 }
 
 .discounted-table th {
-  background: #1e40af;
+  background: #ea580c;
   color: white;
   padding: 12px;
   text-align: right;
@@ -1977,7 +1977,7 @@ body {
 
 .net-card.net.positive {
   background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  border: 2px solid #3b82f6;
+  border: 2px solid #f97316;
 }
 
 .net-card.net.negative {
@@ -2041,7 +2041,7 @@ body {
 .brand-text {
   font-size: 22px;
   font-weight: 800;
-  background: linear-gradient(135deg, #4338ca, #0ea5e9);
+  background: linear-gradient(135deg, #ea580c, #fdba74);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -2090,8 +2090,8 @@ body {
 
 .theme-toggle.dark .theme-toggle-thumb {
   transform: translateX(-24px);
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.5);
+  background: linear-gradient(135deg, #f97316, #8b5cf6);
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.5);
 }
 
 /* ===== LOADING ===== */
@@ -2558,7 +2558,7 @@ body {
 
 /* شارة عدد الأيام */
 .days-badge {
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, #f97316, #4f46e5);
   color: white;
   padding: 2px 8px;
   border-radius: 12px;
@@ -2950,12 +2950,12 @@ body {
 }
 
 .btn.info {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #f97316 0%, #c2410c 100%);
   color: white;
 }
 
 .btn.info:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  background: linear-gradient(135deg, #ea580c 0%, #ea580c 100%);
   transform: translateY(-1px);
 }
 
@@ -3733,7 +3733,7 @@ body {
   padding: 4px 8px;
   background: #dbeafe;
   border-radius: 4px;
-  color: #1e40af;
+  color: #ea580c;
 }
 
 .search-no-results {
@@ -4284,7 +4284,7 @@ body {
   right: -20%;
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, transparent 70%);
   border-radius: 50%;
 }
 
@@ -4335,7 +4335,7 @@ body {
 .cards-add-btn {
   z-index: 1;
   padding: 12px 28px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #f97316 0%, #8b5cf6 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -4344,12 +4344,12 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
 }
 
 .cards-add-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 8px 25px rgba(249, 115, 22, 0.5);
 }
 
 .cards-hero-actions {
@@ -4414,8 +4414,8 @@ body {
 
 .cards-search-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  border-color: #f97316;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
 }
 
 .cards-search-clear {
@@ -4438,12 +4438,12 @@ body {
 
 [data-theme="dark"] .cards-search-input {
   background: rgba(30, 41, 59, 0.8) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
+  border-color: rgba(249, 115, 22, 0.3) !important;
   color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .cards-search-input:focus {
-  border-color: #818cf8 !important;
+  border-color: #fb923c !important;
   box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15) !important;
 }
 
@@ -4456,7 +4456,7 @@ body {
 }
 
 [data-theme="dark"] .cards-search-clear:hover {
-  background: rgba(99, 102, 241, 0.2) !important;
+  background: rgba(249, 115, 22, 0.2) !important;
   color: #e2e8f0 !important;
 }
 
@@ -4531,7 +4531,7 @@ body {
 
 .report-filter-field select:focus {
   outline: none;
-  border-color: #6366f1;
+  border-color: #f97316;
 }
 
 .report-year-nav {
@@ -4589,7 +4589,7 @@ body {
 
 [data-theme="dark"] .cards-report-filters {
   background: rgba(30, 41, 59, 0.8) !important;
-  border-color: rgba(99, 102, 241, 0.2) !important;
+  border-color: rgba(249, 115, 22, 0.2) !important;
 }
 
 [data-theme="dark"] .report-filters-close {
@@ -4597,22 +4597,22 @@ body {
 }
 
 [data-theme="dark"] .report-filters-close:hover {
-  background: rgba(99, 102, 241, 0.2) !important;
+  background: rgba(249, 115, 22, 0.2) !important;
   color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .report-filter-field select {
   background: rgba(15, 23, 42, 0.6) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
+  border-color: rgba(249, 115, 22, 0.3) !important;
   color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .report-filter-field select:focus {
-  border-color: #818cf8 !important;
+  border-color: #fb923c !important;
 }
 
 [data-theme="dark"] .report-year-nav {
-  border-color: rgba(99, 102, 241, 0.3) !important;
+  border-color: rgba(249, 115, 22, 0.3) !important;
   background: rgba(15, 23, 42, 0.6) !important;
 }
 
@@ -4621,7 +4621,7 @@ body {
 }
 
 [data-theme="dark"] .report-year-nav button:hover {
-  background: rgba(99, 102, 241, 0.2) !important;
+  background: rgba(249, 115, 22, 0.2) !important;
   color: #e2e8f0 !important;
 }
 
@@ -4677,8 +4677,8 @@ body {
 
 .cards-field input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
   background: #fff;
 }
 
@@ -4689,7 +4689,7 @@ body {
 .cards-submit-btn {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #f97316 0%, #8b5cf6 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -4698,12 +4698,12 @@ body {
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
 }
 
 .cards-submit-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
 }
 
 /* Filters */
@@ -4728,7 +4728,7 @@ body {
 
 .cards-select:focus {
   outline: none;
-  border-color: #6366f1;
+  border-color: #f97316;
 }
 
 .cards-year-nav {
@@ -4864,19 +4864,19 @@ body {
 }
 
 .cards-package-card:hover {
-  border-color: #6366f1;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+  border-color: #f97316;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.1);
 }
 
 .cards-package-card.cards-package-active {
-  border-color: #6366f1;
+  border-color: #f97316;
   background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.2);
 }
 
 [data-theme="dark"] .cards-package-card.cards-package-active {
-  border-color: #818cf8 !important;
-  background: rgba(99, 102, 241, 0.2) !important;
+  border-color: #fb923c !important;
+  background: rgba(249, 115, 22, 0.2) !important;
   box-shadow: 0 4px 16px rgba(129, 140, 248, 0.2) !important;
 }
 
@@ -4912,7 +4912,7 @@ body {
 
 .cards-package-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  background: linear-gradient(90deg, #f97316, #8b5cf6);
   border-radius: 3px;
   transition: width 0.5s ease;
 }

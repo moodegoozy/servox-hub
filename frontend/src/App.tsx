@@ -933,7 +933,7 @@ function App() {
           .report-title { font-size: 16px; font-weight: 800; color: #1e293b; line-height: 1.3; }
           .report-subtitle { font-size: 11px; color: #94a3b8; font-weight: 600; }
           .report-period { 
-            background: #eef2ff; color: #4f46e5; padding: 5px 16px; 
+            background: #fff7ed; color: #ea580c; padding: 5px 16px; 
             border-radius: 8px; font-size: 13px; font-weight: 700; 
           }
           
@@ -971,7 +971,7 @@ function App() {
           tbody tr:nth-child(even) { background: #f8fafc; }
           .td-num { color: #94a3b8; font-size: 10px; }
           .td-card { font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; }
-          .td-pkg { color: #4f46e5; font-weight: 700; font-size: 11px; }
+          .td-pkg { color: #ea580c; font-weight: 700; font-size: 11px; }
           .td-value { font-weight: 800; color: #059669; }
           .td-note { color: #94a3b8; font-size: 11px; }
           
@@ -1134,8 +1134,8 @@ function App() {
             body { font-family: 'Cairo', sans-serif; padding: 20px; }
             .header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e5e7eb; }
             .logo-container { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px; }
-            .company-name { font-size: 26px; font-weight: 700; color: #1e40af; letter-spacing: 1px; }
-            .arrows { font-size: 22px; color: #60a5fa; font-weight: bold; }
+            .company-name { font-size: 26px; font-weight: 700; color: #ea580c; letter-spacing: 1px; }
+            .arrows { font-size: 22px; color: #fb923c; font-weight: bold; }
             h1 { text-align: center; color: #1a1a2e; margin-bottom: 5px; margin-top: 0; }
             .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -1802,20 +1802,20 @@ function App() {
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', Arial, sans-serif; }
           body { color: #1a1a1a; line-height: 1.6; direction: rtl; font-size: 14px; padding: 20px; }
-          .header { border-bottom: 3px solid #1e40af; padding-bottom: 15px; margin-bottom: 20px; }
+          .header { border-bottom: 3px solid #ea580c; padding-bottom: 15px; margin-bottom: 20px; }
           .header table { width: 100%; }
-          .company { font-size: 28px; font-weight: 700; color: #1e40af; }
+          .company { font-size: 28px; font-weight: 700; color: #ea580c; }
           .invoice-type { font-size: 16px; color: #f59e0b; font-weight: 600; }
           .invoice-info { font-size: 12px; text-align: left; }
           .section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
-          .section-title { font-size: 14px; font-weight: 700; color: white; background: #1e40af; padding: 10px 15px; }
+          .section-title { font-size: 14px; font-weight: 700; color: white; background: #ea580c; padding: 10px 15px; }
           .data-table { width: 100%; border-collapse: collapse; }
           .data-table td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
           .data-table tr:last-child td { border-bottom: none; }
           .data-table .label { color: #64748b; width: 40%; }
           .data-table .value { font-weight: 600; color: #1e293b; }
           .financial-table { width: 100%; border-collapse: collapse; }
-          .financial-table th { background: #1e40af; color: white; padding: 12px 15px; text-align: right; font-size: 13px; }
+          .financial-table th { background: #ea580c; color: white; padding: 12px 15px; text-align: right; font-size: 13px; }
           .financial-table td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
           .financial-table .highlight { background: #fef3c7; font-weight: 700; }
           .footer { text-align: center; padding-top: 20px; margin-top: 30px; border-top: 2px solid #e2e8f0; font-size: 11px; color: #64748b; }
@@ -1930,13 +1930,13 @@ function App() {
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', Arial, sans-serif; }
           body { color: #1a1a1a; line-height: 1.6; direction: rtl; font-size: 14px; padding: 20px; }
-          .header { border-bottom: 3px solid #1e40af; padding-bottom: 15px; margin-bottom: 20px; }
+          .header { border-bottom: 3px solid #ea580c; padding-bottom: 15px; margin-bottom: 20px; }
           .header table { width: 100%; }
-          .company { font-size: 28px; font-weight: 700; color: #1e40af; }
+          .company { font-size: 28px; font-weight: 700; color: #ea580c; }
           .invoice-type { font-size: 16px; color: #06b6d4; font-weight: 600; }
           .invoice-info { font-size: 12px; text-align: left; }
           .section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
-          .section-title { font-size: 14px; font-weight: 700; color: white; background: #1e40af; padding: 10px 15px; }
+          .section-title { font-size: 14px; font-weight: 700; color: white; background: #ea580c; padding: 10px 15px; }
           .data-table { width: 100%; border-collapse: collapse; }
           .data-table td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
           .data-table tr:last-child td { border-bottom: none; }
@@ -1944,7 +1944,7 @@ function App() {
           .data-table .value { font-weight: 600; color: #1e293b; }
           .subscription-box { background: #e0f2fe; border: 2px solid #0ea5e9; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; }
           .subscription-label { font-size: 14px; color: #64748b; margin-bottom: 10px; }
-          .subscription-value { font-size: 32px; font-weight: 700; color: #1e40af; }
+          .subscription-value { font-size: 32px; font-weight: 700; color: #ea580c; }
           .status-box { border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; }
           .status-paid { background: #dcfce7; border: 2px solid #22c55e; }
           .status-unpaid { background: #fee2e2; border: 2px solid #ef4444; }
