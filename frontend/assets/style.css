@@ -1,0 +1,283 @@
+:root {
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --primary: #1d4ed8;
+  --primary-strong: #1e40af;
+  --border: #e5e7eb;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --warning: #f59e0b;
+  --radius: 14px;
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Cairo', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+main.container {
+  max-width: 1200px;
+  margin: 32px auto 80px;
+  padding: 0 16px;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.card.narrow {
+  max-width: 440px;
+  margin: 60px auto;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn.primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(29, 78, 216, 0.25);
+}
+
+.btn.primary:hover {
+  background: var(--primary-strong);
+}
+
+.btn.secondary {
+  background: #111827;
+  color: #fff;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn.full {
+  width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.form-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+
+.grid.two-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+.grid.gap {
+  gap: 20px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.list-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.list-item .actions {
+  display: flex;
+  gap: 8px;
+}
+
+.customer-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.status {
+  text-align: end;
+}
+
+.status-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.status-badge.active {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--success);
+}
+
+.status-badge.expired {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--danger);
+}
+
+.status-badge.warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
+}
+
+.chip {
+  background: #eef2ff;
+  color: #312e81;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111827;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .list-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .customer-main {
+    width: 100%;
+  }
+}
