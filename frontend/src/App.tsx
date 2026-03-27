@@ -102,7 +102,7 @@ function App() {
   const [site, setSite] = useState('');
   const [notes, setNotes] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'microtik' | 'customers-db' | 'cards'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db'>('dashboard');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [yearlyCityId, setYearlyCityId] = useState<string | null>(null);
   const [invoiceCityId, setInvoiceCityId] = useState<string | null>(null);
@@ -1151,8 +1151,7 @@ function App() {
         <body>
           <div class="header">
             <div class="logo-container" style="direction: ltr;">
-              <span class="company-name">DATA HUB</span>
-              <span class="arrows">▶▶</span>
+              <img src="${window.location.origin}/logo.png" style="height: 50px;" crossorigin="anonymous" />
             </div>
             <h1>📋 قاعدة العملاء</h1>
           </div>
@@ -1828,12 +1827,9 @@ function App() {
             <tr>
               <td style="vertical-align: middle;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                  <svg width="40" height="28" viewBox="0 0 56 28" fill="none">
-                    <polygon points="4,4 4,24 18,14" fill="#1e40af" />
-                    <polygon points="20,4 20,24 34,14" fill="#60a5fa" />
-                  </svg>
+                  <img src="${window.location.origin}/logo.png" style="height: 40px;" crossorigin="anonymous" />
                   <div>
-                    <div class="company">DATA HUB</div>
+                    <div class="company">SERVOX</div>
                     <div class="invoice-type">${isPreviousMonth ? `فاتورة تأسيس سابقة لشهر: ${monthName}` : 'فاتورة تأسيس'}</div>
                   </div>
                 </div>
@@ -1877,7 +1873,7 @@ function App() {
         ` : ''}
         
         <div class="footer">
-          <p>شكراً لتعاملكم معنا | © 2025 DATA HUB</p>
+          <p>شكراً لتعاملكم معنا | © 2025 SERVOX</p>
         </div>
       </body>
       </html>
@@ -1967,12 +1963,9 @@ function App() {
             <tr>
               <td style="vertical-align: middle;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                  <svg width="40" height="28" viewBox="0 0 56 28" fill="none">
-                    <polygon points="4,4 4,24 18,14" fill="#1e40af" />
-                    <polygon points="20,4 20,24 34,14" fill="#60a5fa" />
-                  </svg>
+                  <img src="${window.location.origin}/logo.png" style="height: 40px;" crossorigin="anonymous" />
                   <div>
-                    <div class="company">DATA HUB</div>
+                    <div class="company">SERVOX</div>
                     <div class="invoice-type">${isPreviousMonth ? `فاتورة سابقة لشهر: ${monthName}` : 'فاتورة اشتراك شهري'}</div>
                   </div>
                 </div>
@@ -2014,7 +2007,7 @@ function App() {
         ` : ''}
         
         <div class="footer">
-          <p>شكراً لتعاملكم معنا | © 2025 DATA HUB</p>
+          <p>شكراً لتعاملكم معنا | © 2025 SERVOX</p>
         </div>
       </body>
       </html>
@@ -2073,11 +2066,7 @@ function App() {
       <div className="login-page">
         <div className="login-card">
           <div className="login-brand">
-            <svg width="50" height="35" viewBox="0 0 56 28" fill="none">
-              <polygon points="4,4 4,24 18,14" fill="#1e40af" />
-              <polygon points="20,4 20,24 34,14" fill="#60a5fa" />
-            </svg>
-            <h1>DATA HUB</h1>
+            <img src="/logo.png" alt="SERVOX" style={{ height: '60px' }} />
           </div>
           <p style={{ textAlign: 'center', color: 'var(--text-light)' }}>جاري التحميل...</p>
         </div>
@@ -2090,16 +2079,15 @@ function App() {
       <div className="login-page">
         <div className="login-card">
           <div className="login-brand">
-            <svg width="50" height="35" viewBox="0 0 56 28" fill="none">
-              <polygon points="4,4 4,24 18,14" fill="#1e40af" />
-              <polygon points="20,4 20,24 34,14" fill="#60a5fa" />
-            </svg>
-            <h1>DATA HUB</h1>
+            <img src="/logo.png" alt="SERVOX" style={{ height: '80px' }} />
           </div>
           <form onSubmit={handleLogin}>
             <input type="email" placeholder="البريد الإلكتروني" value={username} onChange={(e) => setUsername(e.target.value)} required />
             <input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <button type="submit">دخول</button>
+            <button type="submit" className="login-btn">
+              <span className="login-btn-text">دخول</span>
+              <span className="login-btn-icon">→</span>
+            </button>
           </form>
         </div>
         {toastMessage && <div className="toast">{toastMessage}</div>}
@@ -2111,11 +2099,7 @@ function App() {
     <div className="container">
       <header className="app-header">
         <div className="brand">
-          <svg width="40" height="28" viewBox="0 0 56 28" fill="none">
-            <polygon points="4,4 4,24 18,14" fill={darkMode ? '#6366f1' : '#4338ca'} />
-            <polygon points="20,4 20,24 34,14" fill={darkMode ? '#a5b4fc' : '#818cf8'} />
-          </svg>
-          <div className="brand-text">DATA HUB</div>
+          <img src="/logo.png" alt="SERVOX" style={{ height: '70px' }} />
         </div>
         <button 
           className={`theme-toggle ${darkMode ? 'dark' : ''}`}
@@ -2130,7 +2114,7 @@ function App() {
           <input 
             type="text"
             placeholder={
-              activeTab === 'expenses' || activeTab === 'microtik' || activeTab === 'cards'
+              activeTab === 'expenses'
                 ? 'البحث غير متاح في هذا التبويب'
                 : activeTab === 'discounts'
                 ? 'ابحث في العملاء بالخصم...'
@@ -2141,7 +2125,7 @@ function App() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
-            disabled={activeTab === 'expenses' || activeTab === 'microtik' || activeTab === 'cards'}
+            disabled={activeTab === 'expenses'}
           />
           {searchQuery && searchResults.length > 0 && (
             <div className="search-results">
@@ -2180,8 +2164,6 @@ function App() {
         <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>المصروفات</button>
         <button className={`tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => setActiveTab('discounts')}>الخصومات</button>
         <button className={`tab-btn ${activeTab === 'suspended' ? 'active' : ''}`} onClick={() => setActiveTab('suspended')}>إيقاف مؤقت</button>
-        <button className={`tab-btn ${activeTab === 'cards' ? 'active' : ''}`} onClick={() => setActiveTab('cards')}>البطاقات</button>
-        <button className={`tab-btn ${activeTab === 'microtik' ? 'active' : ''}`} onClick={() => setActiveTab('microtik')}>ميكروتيك</button>
       </div>
 
       {loading ? (

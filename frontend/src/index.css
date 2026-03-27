@@ -1252,6 +1252,84 @@ body {
   color: var(--text-light);
 }
 
+/* ===== LOGIN BUTTON - PREMIUM STYLE ===== */
+.login-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 18px 32px;
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Cairo', sans-serif;
+  color: #fff;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%);
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 
+    0 4px 15px rgba(249, 115, 22, 0.4),
+    0 8px 30px rgba(234, 88, 12, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.login-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+.login-btn:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 
+    0 8px 25px rgba(249, 115, 22, 0.5),
+    0 16px 40px rgba(234, 88, 12, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.login-btn:hover::before {
+  left: 100%;
+}
+
+.login-btn:active {
+  transform: translateY(-2px) scale(0.98);
+  box-shadow: 
+    0 4px 15px rgba(249, 115, 22, 0.4),
+    0 6px 20px rgba(234, 88, 12, 0.3);
+}
+
+.login-btn-text {
+  position: relative;
+  z-index: 1;
+  letter-spacing: 1px;
+}
+
+.login-btn-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 22px;
+  transition: transform 0.3s ease;
+}
+
+.login-btn:hover .login-btn-icon {
+  transform: translateX(-8px);
+}
+
 /* ===== MAIN APP ===== */
 .container {
   max-width: 1440px;

@@ -10,6 +10,7 @@ app.use(express.json());
 // اسمح للأصل المنتج (frontend) بالوصول؛ عدّل القائمة حسب الحاجة
 const allowedOrigins = [
   'https://datahub-44154.web.app',
+  'https://meta-yen-487714-j8.web.app',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
