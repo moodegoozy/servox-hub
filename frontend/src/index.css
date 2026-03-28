@@ -140,17 +140,17 @@
   border-color: var(--border) !important;
 }
 
-/* Status btn: pending (unpaid) - red */
+/* Status btn: pending (unpaid) - gray */
 [data-theme="dark"] .status-btn.pending {
-  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+  background: linear-gradient(135deg, #4b5563 0%, #6b7280 100%) !important;
   color: white !important;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3) !important;
 }
 
 [data-theme="dark"] .status-btn.pending:hover {
-  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%) !important;
+  background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%) !important;
   color: white !important;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4) !important;
 }
 
 /* Status btn: discounted - purple */
@@ -3450,14 +3450,14 @@ body {
 }
 
 .status-btn.pending {
-  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
 }
 
 .status-btn.pending:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
 }
 
 .month-cell-content {
