@@ -140,17 +140,30 @@
   border-color: var(--border) !important;
 }
 
-/* Status btn: the MAIN offender - pending buttons are light gray */
+/* Status btn: pending (unpaid) - red */
 [data-theme="dark"] .status-btn.pending {
-  background: linear-gradient(135deg, #334155 0%, #475569 100%) !important;
-  color: #94a3b8 !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
 }
 
 [data-theme="dark"] .status-btn.pending:hover {
-  background: linear-gradient(135deg, #475569 0%, #64748b 100%) !important;
-  color: #e2e8f0 !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Status btn: discounted - purple */
+[data-theme="dark"] .status-btn.discounted {
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .status-btn.discounted:hover {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4) !important;
 }
 
 /* Invoice mini btn */
@@ -597,9 +610,31 @@
   color: white !important;
 }
 
+/* مدفوع - أخضر */
+[data-theme="dark"] .payment-btn.paid-active {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+  color: white !important;
+}
+
+/* جزئي - برتقالي */
 [data-theme="dark"] .payment-btn.partial-active {
   background: #d97706 !important;
   border-color: #d97706 !important;
+  color: white !important;
+}
+
+/* مدفوع بخصم - بنفسجي */
+[data-theme="dark"] .payment-btn.discounted-active {
+  background: #8b5cf6 !important;
+  border-color: #8b5cf6 !important;
+  color: white !important;
+}
+
+/* غير مسدد - أحمر */
+[data-theme="dark"] .payment-btn.unpaid-active {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
   color: white !important;
 }
 
@@ -685,6 +720,11 @@
 [data-theme="dark"] .invoice-month-status.status-partial {
   background: rgba(251, 191, 36, 0.15) !important;
   color: #fcd34d !important;
+}
+
+[data-theme="dark"] .invoice-month-status.status-discounted {
+  background: rgba(139, 92, 246, 0.15) !important;
+  color: #a78bfa !important;
 }
 
 [data-theme="dark"] .invoice-month-status.status-unpaid {
@@ -1469,6 +1509,14 @@ body {
   border-color: #f97316;
 }
 
+/* مدفوع - أخضر */
+.payment-btn.paid-active {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
+
+/* جزئي - برتقالي */
 .payment-btn.partial-active {
   background: #f59e0b;
   color: white;
@@ -1478,6 +1526,30 @@ body {
 .payment-btn.partial-active:hover {
   background: #d97706;
   border-color: #d97706;
+}
+
+/* مدفوع بخصم - بنفسجي */
+.payment-btn.discounted-active {
+  background: #8b5cf6;
+  color: white;
+  border-color: #8b5cf6;
+}
+
+.payment-btn.discounted-active:hover {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+/* غير مسدد - أحمر */
+.payment-btn.unpaid-active {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.payment-btn.unpaid-active:hover {
+  background: #dc2626;
+  border-color: #dc2626;
 }
 
 /* Discounts Tab Styles */
@@ -2551,6 +2623,11 @@ body {
   color: #d97706;
 }
 
+.invoice-month-status.status-discounted {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
 .invoice-month-status.status-unpaid {
   background: #fee2e2;
   color: #dc2626;
@@ -3361,15 +3438,26 @@ body {
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
+.status-btn.discounted {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.status-btn.discounted:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
 .status-btn.pending {
-  background: linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%);
-  color: #475569;
-  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.3);
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 .status-btn.pending:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.4);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
 .month-cell-content {
@@ -5278,6 +5366,12 @@ body {
   border: 1px solid rgba(245, 158, 11, 0.15);
 }
 
+.payment-status-indicator.discounted {
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
 .payment-status-indicator.full {
   background: var(--success-bg);
   color: var(--success-text);
@@ -5290,6 +5384,71 @@ body {
 
 .payment-status-indicator .remaining-amount {
   font-weight: 800;
+}
+
+/* Payment type choice buttons */
+.payment-type-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-flat);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.payment-type-choice .choice-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-left: 8px;
+}
+
+.payment-type-choice .choice-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Cairo', sans-serif;
+}
+
+.payment-type-choice .choice-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.payment-type-choice .choice-btn.active.partial {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: white;
+}
+
+.payment-type-choice .choice-btn.active.discounted {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: white;
+}
+
+[data-theme="dark"] .payment-type-choice {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+[data-theme="dark"] .payment-type-choice .choice-btn {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+[data-theme="dark"] .payment-status-indicator.discounted {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
 }
 
 /* Modal footer premium */

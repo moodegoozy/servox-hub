@@ -29,8 +29,8 @@ type Customer = {
   lap?: string;
   site?: string;
   notes?: string;
-  paymentStatus?: 'paid' | 'unpaid' | 'partial';
-  monthlyPayments?: { [yearMonth: string]: 'paid' | 'partial' | 'pending' };
+  paymentStatus?: 'paid' | 'unpaid' | 'partial' | 'discounted';
+  monthlyPayments?: { [yearMonth: string]: 'paid' | 'partial' | 'pending' | 'discounted' };
   monthlyPartialAmounts?: { [yearMonth: string]: number };
   hasDiscount?: boolean;
   discountAmount?: number;
@@ -114,8 +114,9 @@ function App() {
   const [revenuesMonth, setRevenuesMonth] = useState(new Date().getMonth() + 1);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [confirmStatusChange, setConfirmStatusChange] = useState<{customer: Customer; newStatus: 'paid' | 'unpaid' | 'partial'; yearMonth?: string} | null>(null);
+  const [confirmStatusChange, setConfirmStatusChange] = useState<{customer: Customer; newStatus: 'paid' | 'unpaid' | 'partial' | 'discounted'; yearMonth?: string} | null>(null);
   const [partialPaymentAmount, setPartialPaymentAmount] = useState('');
+  const [paymentTypeChoice, setPaymentTypeChoice] = useState<'partial' | 'discounted'>('partial');
   const [paymentMonth, setPaymentMonth] = useState(new Date().getMonth() + 1);
   const [paymentYear, setPaymentYear] = useState(new Date().getFullYear());
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('datahub-theme') === 'dark');
@@ -184,13 +185,6 @@ function App() {
 
   // whether to use cloud NAT as mikro IP
   const [useCloudNat, setUseCloudNat] = useState(false);
-
-  // fetch Cloud NAT once when mikro tab is opened
-  useEffect(() => {
-    if (activeTab === 'microtik') {
-      fetchCloudNatIp();
-    }
-  }, [activeTab]);
 
   // المصروفات
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -1072,7 +1066,7 @@ function App() {
     `;
     
     const options = {
-      margin: [8, 4, 8, 4],
+      margin: [8, 4, 8, 4] as [number, number, number, number],
       filename: `تقرير_البطاقات_${monthName}_${reportYear}${reportPackage ? '_' + reportPackage : ''}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
@@ -1111,7 +1105,7 @@ function App() {
 
     const tableRows = filtered.map((customer, index) => {
       const city = cities.find(c => c.id === customer.cityId);
-      const statusText = customer.paymentStatus === 'paid' ? 'مدفوع' : customer.paymentStatus === 'partial' ? 'جزئي' : 'غير مسدد';
+      const statusText = customer.paymentStatus === 'paid' ? 'مدفوع' : customer.paymentStatus === 'partial' ? 'جزئي' : customer.paymentStatus === 'discounted' ? 'مدفوع بخصم' : 'غير مسدد';
       return `
         <tr>
           <td>${index + 1}</td>
@@ -1507,7 +1501,7 @@ function App() {
     }
   };
 
-  const handleTogglePaymentStatus = (customer: Customer, newStatus: 'paid' | 'unpaid' | 'partial') => {
+  const handleTogglePaymentStatus = (customer: Customer, newStatus: 'paid' | 'unpaid' | 'partial' | 'discounted') => {
     if (newStatus === 'paid') {
       // فتح نافذة الدفع الموحدة مع تحديد الشهر والمبلغ
       const now = new Date();
@@ -1523,10 +1517,12 @@ function App() {
       } else {
         setPartialPaymentAmount(String(customer.subscriptionValue || ''));
       }
+      setPaymentTypeChoice('partial'); // reset choice
       setConfirmStatusChange({ customer, newStatus: 'paid' });
     } else if (newStatus === 'partial') {
       setConfirmStatusChange({ customer, newStatus });
       setPartialPaymentAmount(String(customer.subscriptionPaid || ''));
+      setPaymentTypeChoice('partial');
     } else {
       setConfirmStatusChange({ customer, newStatus });
       setPartialPaymentAmount('');
@@ -1546,14 +1542,15 @@ function App() {
       // تحديد الحالة تلقائياً بناءً على المبلغ المدفوع
       const paidAmount = parseFloat(partialPaymentAmount) || 0;
       const subscriptionValue = confirmStatusChange.customer.subscriptionValue || 0;
-      let finalStatus: 'paid' | 'unpaid' | 'partial' = confirmStatusChange.newStatus;
+      let finalStatus: 'paid' | 'unpaid' | 'partial' | 'discounted' = confirmStatusChange.newStatus;
       
       // إذا كان الطلب هو دفع (من زر مدفوع) نحدد الحالة تلقائياً
-      if (confirmStatusChange.newStatus === 'paid' || confirmStatusChange.newStatus === 'partial') {
+      if (confirmStatusChange.newStatus === 'paid' || confirmStatusChange.newStatus === 'partial' || confirmStatusChange.newStatus === 'discounted') {
         if (paidAmount <= 0) {
           finalStatus = 'unpaid';
         } else if (paidAmount < subscriptionValue) {
-          finalStatus = 'partial';
+          // استخدم اختيار المستخدم (جزئي أو خصم)
+          finalStatus = paymentTypeChoice;
         } else {
           finalStatus = 'paid';
         }
@@ -1562,7 +1559,7 @@ function App() {
       const updatedPayments = { ...(confirmStatusChange.customer.monthlyPayments || {}) };
       // Convert unpaid to pending for monthlyPayments
       const monthlyStatus = finalStatus === 'unpaid' ? 'pending' : finalStatus;
-      updatedPayments[yearMonth] = monthlyStatus as 'paid' | 'partial' | 'pending';
+      updatedPayments[yearMonth] = monthlyStatus as 'paid' | 'partial' | 'pending' | 'discounted';
       
       // تحديد paymentStatus بناءً على الشهر الحالي
       const today = new Date();
@@ -1571,7 +1568,7 @@ function App() {
       
       const updatedCustomer: Customer = {
         ...confirmStatusChange.customer,
-        monthlyPayments: updatedPayments as Record<string, 'paid' | 'partial' | 'pending'>,
+        monthlyPayments: updatedPayments as Record<string, 'paid' | 'partial' | 'pending' | 'discounted'>,
       };
       
       // تحديث paymentStatus فقط إذا كان الشهر الحالي
@@ -1581,7 +1578,7 @@ function App() {
       
       // حفظ المبلغ الجزئي لكل شهر
       const updatedPartialAmounts = { ...(confirmStatusChange.customer.monthlyPartialAmounts || {}) };
-      if (finalStatus === 'partial' && paidAmount > 0) {
+      if ((finalStatus === 'partial' || finalStatus === 'discounted') && paidAmount > 0) {
         updatedCustomer.subscriptionPaid = paidAmount;
         updatedPartialAmounts[yearMonth] = paidAmount;
       } else if (finalStatus === 'paid') {
@@ -1592,6 +1589,13 @@ function App() {
       }
       updatedCustomer.monthlyPartialAmounts = updatedPartialAmounts;
       
+      // إذا اختار خصم، نسجل الخصم تلقائياً
+      if (finalStatus === 'discounted') {
+        const discountAmount = subscriptionValue - paidAmount;
+        updatedCustomer.hasDiscount = true;
+        updatedCustomer.discountAmount = discountAmount;
+      }
+      
       await setDoc(doc(db, 'customers', confirmStatusChange.customer.id), updatedCustomer);
       
       // تحديث الحالة المحلية
@@ -1600,10 +1604,11 @@ function App() {
       }
       setCustomers(customers.map(c => c.id === confirmStatusChange.customer.id ? updatedCustomer : c));
       
-      const statusMap = { paid: 'مدفوع', unpaid: 'غير مسدد', partial: 'مدفوع جزئي' };
+      const statusMap: Record<string, string> = { paid: 'مدفوع', unpaid: 'غير مسدد', partial: 'جزئي', discounted: 'مدفوع بخصم' };
       setToastMessage(`تم تغيير حالة ${confirmStatusChange.customer.name} إلى ${statusMap[finalStatus]}`);
       setConfirmStatusChange(null);
       setPartialPaymentAmount('');
+      setPaymentTypeChoice('partial');
     } catch (error) {
       setToastMessage('خطأ في تغيير الحالة');
       console.error(error);
@@ -1900,7 +1905,7 @@ function App() {
     const city = cities.find((c) => c.id === customer.cityId);
     
     // إذا تم تحديد شهر وسنة، استخدم حالة الدفع من monthlyPayments
-    let paymentStatus: 'paid' | 'partial' | 'pending' = 'pending';
+    let paymentStatus: 'paid' | 'partial' | 'pending' | 'discounted' = 'pending';
     let invoiceDate = todayISO();
     let monthName = '';
     let isPreviousMonth = false;
@@ -1910,13 +1915,13 @@ function App() {
     
     if (month && year) {
       const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
-      paymentStatus = customer.monthlyPayments?.[yearMonth] || 'pending';
+      paymentStatus = (customer.monthlyPayments?.[yearMonth] || 'pending') as typeof paymentStatus;
       invoiceDate = `${year}-${String(month).padStart(2, '0')}-01`;
       monthName = MONTHS_AR[month - 1] + ' ' + year;
       // تحقق إذا كان الشهر/السنة مختلفة عن الحالية
       isPreviousMonth = (year !== currentYear || month !== currentMonth);
     } else {
-      paymentStatus = customer.paymentStatus === 'paid' ? 'paid' : customer.paymentStatus === 'partial' ? 'partial' : 'pending';
+      paymentStatus = customer.paymentStatus === 'paid' ? 'paid' : customer.paymentStatus === 'partial' ? 'partial' : customer.paymentStatus === 'discounted' ? 'discounted' : 'pending';
     }
     
     const isPaid = paymentStatus === 'paid';
@@ -2144,7 +2149,7 @@ function App() {
               })}
             </div>
           )}
-          {searchQuery && searchResults.length === 0 && activeTab !== 'expenses' && activeTab !== 'microtik' && (
+          {searchQuery && searchResults.length === 0 && activeTab !== 'expenses' && (
             <div className="search-results">
               <div className="search-result-item" style={{ color: 'var(--text-light)', cursor: 'default' }}>
                 لا توجد نتائج في هذا التبويب
@@ -2170,513 +2175,6 @@ function App() {
         <div className="loading">جاري التحميل...</div>
       ) : (
       <main className="main-content">
-        {activeTab === 'microtik' && (
-          <div className="section mikrotik-section">
-            {!mikroConnected ? (
-              <>
-                <h2>الاتصال بجهاز ميكروتيك</h2>
-                <div style={{ maxWidth: 500, margin: '8px auto 20px', textAlign: 'right' }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Cloud NAT IP</h3>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                    <div style={{ color: 'var(--text)', fontWeight: 700 }}>{cloudNatIp}</div>
-                    <button className="btn ghost" onClick={fetchCloudNatIp} type="button">تحديث</button>
-                  </div>
-                </div>
-                <form
-                  className="form-group"
-                  style={{ maxWidth: 400, margin: '0 auto', textAlign: 'right' }}
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    setMikroLoading(true);
-                    setMikroMsg('');
-                    try {
-                      const backendBase = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
-                      const targetIp = useCloudNat ? cloudNatIp : mikroIP;
-                      
-                      // جلب الداشبورد الكامل
-                      const res = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/dashboard`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                      });
-                      const data = await res.json();
-                      if (res.ok && data.connected) {
-                        setMikroDashboard(data);
-                        setMikroConnected(true);
-                        setMikroMsg('');
-                        
-                        // جلب البروفايلات
-                        const profileRes = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/profiles`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                        });
-                        const profileData = await profileRes.json();
-                        if (profileRes.ok) {
-                          setMikroProfiles(profileData.profiles || []);
-                        }
-                      } else {
-                        setMikroMsg(`فشل: ${data.error || JSON.stringify(data)}`);
-                      }
-                    } catch (err) {
-                      setMikroMsg('خطأ في الاتصال بالسيرفر');
-                    } finally {
-                      setMikroLoading(false);
-                    }
-                  }}
-                >
-                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>IP جهاز ميكروتيك</span>
-                    <label style={{ fontSize: 13, color: 'var(--text-light)' }}>
-                      <input type="checkbox" checked={useCloudNat} onChange={(e) => setUseCloudNat(e.target.checked)} style={{ marginLeft: 8 }} />
-                      استخدام Cloud NAT
-                    </label>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="مثال: 192.168.88.1"
-                    required={!useCloudNat}
-                    value={useCloudNat ? cloudNatIp : mikroIP}
-                    onChange={(e) => setMikroIP(e.target.value)}
-                    disabled={useCloudNat}
-                  />
-
-                  <label>اسم المستخدم</label>
-                  <input
-                    type="text"
-                    placeholder="admin"
-                    required
-                    value={mikroUser}
-                    onChange={(e) => setMikroUser(e.target.value)}
-                  />
-
-                  <label>كلمة المرور</label>
-                  <input
-                    type="password"
-                    placeholder="••••••"
-                    required
-                    value={mikroPass}
-                    onChange={(e) => setMikroPass(e.target.value)}
-                  />
-
-                  <button type="submit" className="btn primary" style={{ marginTop: 16 }} disabled={mikroLoading}>
-                    {mikroLoading ? 'جارٍ الاتصال...' : 'اتصل الآن'}
-                  </button>
-                </form>
-
-                {mikroMsg && (
-                  <div style={{ marginTop: 16, color: mikroMsg.startsWith('تم') ? 'green' : 'red' }}>{mikroMsg}</div>
-                )}
-
-                <div style={{ marginTop: 24, color: 'var(--text-light)', fontSize: 15 }}>
-                  <b>ملاحظة:</b> يجب تفعيل API في جهاز ميكروتيك من IP &gt; Services &gt; api (port 8728)
-                </div>
-              </>
-            ) : (
-              <>
-                {/* رأس الداشبورد */}
-                <div className="mikrotik-header">
-                  <div className="mikrotik-identity">
-                    <h2>🌐 {mikroDashboard?.identity || 'MikroTik'}</h2>
-                    <span className="mikrotik-connected-badge">متصل</span>
-                  </div>
-                  <button
-                    className="btn secondary"
-                    onClick={() => {
-                      setMikroConnected(false);
-                      setMikroDashboard(null);
-                      setMikroProfiles([]);
-                      setMikroTab('overview');
-                    }}
-                  >
-                    قطع الاتصال
-                  </button>
-                </div>
-
-                {/* تبويبات فرعية */}
-                <div className="mikrotik-tabs">
-                  <button className={`mikro-tab ${mikroTab === 'overview' ? 'active' : ''}`} onClick={() => setMikroTab('overview')}>نظرة عامة</button>
-                  <button className={`mikro-tab ${mikroTab === 'secrets' ? 'active' : ''}`} onClick={() => setMikroTab('secrets')}>PPPoE Secrets</button>
-                  <button className={`mikro-tab ${mikroTab === 'active' ? 'active' : ''}`} onClick={() => setMikroTab('active')}>الاتصالات النشطة</button>
-                  <button className={`mikro-tab ${mikroTab === 'interfaces' ? 'active' : ''}`} onClick={() => setMikroTab('interfaces')}>الانترفيسات</button>
-                </div>
-
-                {/* نظرة عامة */}
-                {mikroTab === 'overview' && mikroDashboard && (
-                  <div className="mikrotik-overview">
-                    <div className="mikro-stats-grid">
-                      <div className="mikro-stat-card">
-                        <span className="mikro-stat-label">الموديل</span>
-                        <span className="mikro-stat-value">{mikroDashboard.routerboard?.model || mikroDashboard.system?.boardName || '-'}</span>
-                      </div>
-                      <div className="mikro-stat-card">
-                        <span className="mikro-stat-label">الإصدار</span>
-                        <span className="mikro-stat-value">{mikroDashboard.system?.version || '-'}</span>
-                      </div>
-                      <div className="mikro-stat-card">
-                        <span className="mikro-stat-label">وقت التشغيل</span>
-                        <span className="mikro-stat-value">{mikroDashboard.system?.uptime || '-'}</span>
-                      </div>
-                      <div className="mikro-stat-card">
-                        <span className="mikro-stat-label">حمل المعالج</span>
-                        <span className="mikro-stat-value">{mikroDashboard.system?.cpuLoad || '0'}%</span>
-                      </div>
-                      <div className="mikro-stat-card">
-                        <span className="mikro-stat-label">الذاكرة المتاحة</span>
-                        <span className="mikro-stat-value">{mikroDashboard.system?.freeMemory ? Math.round(parseInt(mikroDashboard.system.freeMemory) / 1024 / 1024) + ' MB' : '-'}</span>
-                      </div>
-                      <div className="mikro-stat-card">
-                        <span className="mikro-stat-label">البنية</span>
-                        <span className="mikro-stat-value">{mikroDashboard.system?.architecture || '-'}</span>
-                      </div>
-                    </div>
-                    <div className="mikro-summary-cards">
-                      <div className="mikro-summary-card">
-                        <span className="mikro-summary-number">{mikroDashboard.secrets?.length || 0}</span>
-                        <span className="mikro-summary-label">PPPoE Secrets</span>
-                      </div>
-                      <div className="mikro-summary-card active">
-                        <span className="mikro-summary-number">{mikroDashboard.activeConnections?.length || 0}</span>
-                        <span className="mikro-summary-label">اتصالات نشطة</span>
-                      </div>
-                      <div className="mikro-summary-card">
-                        <span className="mikro-summary-number">{mikroDashboard.interfaces?.filter(i => i.running).length || 0}</span>
-                        <span className="mikro-summary-label">انترفيسات تعمل</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* PPPoE Secrets */}
-                {mikroTab === 'secrets' && mikroDashboard && (
-                  <div className="mikrotik-secrets">
-                    <div className="mikro-toolbar">
-                      <input
-                        type="text"
-                        placeholder="بحث عن secret..."
-                        value={secretSearch}
-                        onChange={(e) => setSecretSearch(e.target.value)}
-                        className="mikro-search"
-                      />
-                      <button className="btn primary" onClick={() => setShowAddSecretModal(true)}>+ إضافة Secret</button>
-                    </div>
-                    <div className="mikro-table-container">
-                      <table className="mikro-table">
-                        <thead>
-                          <tr>
-                            <th>الاسم</th>
-                            <th>الخدمة</th>
-                            <th>البروفايل</th>
-                            <th>IP</th>
-                            <th>الحالة</th>
-                            <th>إجراءات</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {mikroDashboard.secrets
-                            .filter(s => !secretSearch || s.name.toLowerCase().includes(secretSearch.toLowerCase()))
-                            .map((secret) => (
-                              <tr key={secret.id} className={secret.disabled ? 'disabled-row' : ''}>
-                                <td>{secret.name}</td>
-                                <td>{secret.service}</td>
-                                <td>{secret.profile}</td>
-                                <td>{secret.remoteAddress || '-'}</td>
-                                <td>
-                                  <span className={`status-badge ${secret.disabled ? 'inactive' : 'active'}`}>
-                                    {secret.disabled ? 'معطل' : 'فعال'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <div className="mikro-actions">
-                                    <button
-                                      className="btn ghost small"
-                                      onClick={async () => {
-                                        const backendBase = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
-                                        const targetIp = useCloudNat ? cloudNatIp : mikroIP;
-                                        try {
-                                          await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/secrets/${secret.id}/toggle`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass, disabled: !secret.disabled }),
-                                          });
-                                          // تحديث البيانات
-                                          const res = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/dashboard`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                                          });
-                                          const data = await res.json();
-                                          if (res.ok) setMikroDashboard(data);
-                                          setToastMessage(secret.disabled ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم');
-                                        } catch (err) {
-                                          setToastMessage('خطأ في العملية');
-                                        }
-                                      }}
-                                    >
-                                      {secret.disabled ? 'تفعيل' : 'تعطيل'}
-                                    </button>
-                                    <button
-                                      className="btn danger small"
-                                      onClick={async () => {
-                                        if (!confirm(`هل أنت متأكد من حذف ${secret.name}؟`)) return;
-                                        const backendBase = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
-                                        const targetIp = useCloudNat ? cloudNatIp : mikroIP;
-                                        try {
-                                          await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/secrets/${secret.id}`, {
-                                            method: 'DELETE',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                                          });
-                                          // تحديث البيانات
-                                          const res = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/dashboard`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                                          });
-                                          const data = await res.json();
-                                          if (res.ok) setMikroDashboard(data);
-                                          setToastMessage('تم الحذف بنجاح');
-                                        } catch (err) {
-                                          setToastMessage('خطأ في الحذف');
-                                        }
-                                      }}
-                                    >
-                                      حذف
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* الاتصالات النشطة */}
-                {mikroTab === 'active' && mikroDashboard && (
-                  <div className="mikrotik-active">
-                    <div className="mikro-toolbar">
-                      <input
-                        type="text"
-                        placeholder="بحث..."
-                        value={activeSearch}
-                        onChange={(e) => setActiveSearch(e.target.value)}
-                        className="mikro-search"
-                      />
-                      <button
-                        className="btn secondary"
-                        onClick={async () => {
-                          const backendBase = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
-                          const targetIp = useCloudNat ? cloudNatIp : mikroIP;
-                          const res = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/dashboard`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                          });
-                          const data = await res.json();
-                          if (res.ok) setMikroDashboard(data);
-                        }}
-                      >
-                        تحديث
-                      </button>
-                    </div>
-                    <div className="mikro-table-container">
-                      <table className="mikro-table">
-                        <thead>
-                          <tr>
-                            <th>الاسم</th>
-                            <th>الخدمة</th>
-                            <th>العنوان</th>
-                            <th>Caller ID</th>
-                            <th>مدة الاتصال</th>
-                            <th>إجراءات</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {mikroDashboard.activeConnections
-                            .filter(c => !activeSearch || c.name.toLowerCase().includes(activeSearch.toLowerCase()))
-                            .map((conn) => (
-                              <tr key={conn.id}>
-                                <td>{conn.name}</td>
-                                <td>{conn.service}</td>
-                                <td>{conn.address || '-'}</td>
-                                <td>{conn.callerId || '-'}</td>
-                                <td>{conn.uptime || '-'}</td>
-                                <td>
-                                  <button
-                                    className="btn danger small"
-                                    onClick={async () => {
-                                      if (!confirm(`هل أنت متأكد من فصل ${conn.name}؟`)) return;
-                                      const backendBase = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
-                                      const targetIp = useCloudNat ? cloudNatIp : mikroIP;
-                                      try {
-                                        await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/active/${conn.id}/disconnect`, {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                                        });
-                                        // تحديث البيانات
-                                        const res = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/dashboard`, {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                                        });
-                                        const data = await res.json();
-                                        if (res.ok) setMikroDashboard(data);
-                                        setToastMessage('تم الفصل بنجاح');
-                                      } catch (err) {
-                                        setToastMessage('خطأ في الفصل');
-                                      }
-                                    }}
-                                  >
-                                    فصل
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                      {mikroDashboard.activeConnections.length === 0 && (
-                        <div className="mikro-empty">لا توجد اتصالات نشطة</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* الانترفيسات */}
-                {mikroTab === 'interfaces' && mikroDashboard && (
-                  <div className="mikrotik-interfaces">
-                    <div className="mikro-table-container">
-                      <table className="mikro-table">
-                        <thead>
-                          <tr>
-                            <th>الاسم</th>
-                            <th>النوع</th>
-                            <th>الحالة</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {mikroDashboard.interfaces.map((iface) => (
-                            <tr key={iface.id} className={iface.disabled ? 'disabled-row' : ''}>
-                              <td>{iface.name}</td>
-                              <td>{iface.type}</td>
-                              <td>
-                                <span className={`status-badge ${iface.running ? 'active' : 'inactive'}`}>
-                                  {iface.running ? 'يعمل' : 'متوقف'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* مودال إضافة Secret */}
-                {showAddSecretModal && (
-                  <div className="modal-overlay" onClick={() => setShowAddSecretModal(false)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()}>
-                      <h3>إضافة PPPoE Secret جديد</h3>
-                      <form
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          const backendBase = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
-                          const targetIp = useCloudNat ? cloudNatIp : mikroIP;
-                          try {
-                            const res = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/secrets`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                host: targetIp,
-                                username: mikroUser,
-                                password: mikroPass,
-                                secret: {
-                                  name: newSecretName,
-                                  password: newSecretPassword,
-                                  profile: newSecretProfile || undefined,
-                                  remoteAddress: newSecretRemoteAddress || undefined,
-                                },
-                              }),
-                            });
-                            if (res.ok) {
-                              // تحديث البيانات
-                              const dashRes = await fetch(`${backendBase.replace(/\/$/, '')}/mikrotik/dashboard`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ host: targetIp, username: mikroUser, password: mikroPass }),
-                              });
-                              const data = await dashRes.json();
-                              if (dashRes.ok) setMikroDashboard(data);
-                              setShowAddSecretModal(false);
-                              setNewSecretName('');
-                              setNewSecretPassword('');
-                              setNewSecretProfile('');
-                              setNewSecretRemoteAddress('');
-                              setToastMessage('تمت الإضافة بنجاح');
-                            } else {
-                              const err = await res.json();
-                              setToastMessage(`خطأ: ${err.error}`);
-                            }
-                          } catch (err) {
-                            setToastMessage('خطأ في الإضافة');
-                          }
-                        }}
-                      >
-                        <div className="form-group">
-                          <label>اسم المستخدم (Secret Name)</label>
-                          <input
-                            type="text"
-                            value={newSecretName}
-                            onChange={(e) => setNewSecretName(e.target.value)}
-                            required
-                            placeholder="اسم المشترك"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label>كلمة المرور</label>
-                          <input
-                            type="text"
-                            value={newSecretPassword}
-                            onChange={(e) => setNewSecretPassword(e.target.value)}
-                            required
-                            placeholder="كلمة المرور"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label>البروفايل</label>
-                          <select
-                            value={newSecretProfile}
-                            onChange={(e) => setNewSecretProfile(e.target.value)}
-                          >
-                            <option value="">افتراضي</option>
-                            {mikroProfiles.map((p) => (
-                              <option key={p.id} value={p.name}>{p.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label>عنوان IP (اختياري)</label>
-                          <input
-                            type="text"
-                            value={newSecretRemoteAddress}
-                            onChange={(e) => setNewSecretRemoteAddress(e.target.value)}
-                            placeholder="مثال: 10.0.0.100"
-                          />
-                        </div>
-                        <div className="modal-actions">
-                          <button type="submit" className="btn primary">إضافة</button>
-                          <button type="button" className="btn secondary" onClick={() => setShowAddSecretModal(false)}>إلغاء</button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
         {activeTab === 'dashboard' && (
           <>
             <div className="section">
@@ -2778,13 +2276,13 @@ function App() {
                         <div className="payment-buttons">
                           <button 
                             onClick={() => handleTogglePaymentStatus(customer, 'paid')} 
-                            className={`payment-btn ${customer.paymentStatus === 'paid' ? 'active' : customer.paymentStatus === 'partial' ? 'active partial-active' : ''}`}
+                            className={`payment-btn ${customer.paymentStatus === 'paid' ? 'active paid-active' : customer.paymentStatus === 'partial' ? 'active partial-active' : customer.paymentStatus === 'discounted' ? 'active discounted-active' : ''}`}
                           >
-                            {customer.paymentStatus === 'partial' ? 'جزئي' : 'مدفوع'}
+                            {customer.paymentStatus === 'partial' ? 'جزئي' : customer.paymentStatus === 'discounted' ? 'بخصم' : 'مدفوع'}
                           </button>
                           <button 
                             onClick={() => handleTogglePaymentStatus(customer, 'unpaid')} 
-                            className={`payment-btn ${customer.paymentStatus === 'unpaid' ? 'active' : ''}`}
+                            className={`payment-btn ${customer.paymentStatus === 'unpaid' || !customer.paymentStatus ? 'active unpaid-active' : ''}`}
                           >
                             غير مسدد
                           </button>
@@ -2857,8 +2355,8 @@ function App() {
                 const remaining = (customer.setupFeeTotal ?? 0) - (customer.setupFeePaid ?? 0);
                 const yearMonth = `${invoiceYear}-${String(invoiceMonth).padStart(2, '0')}`;
                 const monthStatus = customer.monthlyPayments?.[yearMonth] || 'pending';
-                const statusLabel = monthStatus === 'paid' ? '✓ مدفوع' : monthStatus === 'partial' ? '◐ جزئي' : '✗ غير مسدد';
-                const statusClass = monthStatus === 'paid' ? 'status-paid' : monthStatus === 'partial' ? 'status-partial' : 'status-unpaid';
+                const statusLabel = monthStatus === 'paid' ? '✓ مدفوع' : monthStatus === 'partial' ? '◐ جزئي' : monthStatus === 'discounted' ? '🏷️ بخصم' : '✗ غير مسدد';
+                const statusClass = monthStatus === 'paid' ? 'status-paid' : monthStatus === 'partial' ? 'status-partial' : monthStatus === 'discounted' ? 'status-discounted' : 'status-unpaid';
                 const daysSinceStart = getDaysSinceStart(customer.startDate);
                 return (
                 <div key={customer.id} className="invoice-card">
@@ -2978,10 +2476,12 @@ function App() {
                             const status = customer.monthlyPayments?.[yearMonth] || 'pending';
                             if (status === 'paid') paidCount++;
                             if (status === 'partial') paidCount += 0.5;
+                            if (status === 'discounted') paidCount++;
                             
-                            const statusLabels = {
+                            const statusLabels: Record<string, string> = {
                               paid: 'مدفوع',
                               partial: 'جزئي',
+                              discounted: 'بخصم',
                               pending: 'انتظار'
                             };
                             
@@ -3519,10 +3019,33 @@ function App() {
                     const remaining = total - paid;
                     if (paid > 0 && paid < total) {
                       return (
-                        <div className="payment-status-indicator partial">
-                          <span className="status-icon">⚠️</span>
-                          <span>دفع جزئي — المتبقي: <span className="remaining-amount">{remaining} ﷼</span></span>
-                        </div>
+                        <>
+                          <div className="payment-type-choice">
+                            <span className="choice-label">نوع الدفع:</span>
+                            <button 
+                              type="button"
+                              className={`choice-btn ${paymentTypeChoice === 'partial' ? 'active partial' : ''}`}
+                              onClick={() => setPaymentTypeChoice('partial')}
+                            >
+                              جزئي
+                            </button>
+                            <button 
+                              type="button"
+                              className={`choice-btn ${paymentTypeChoice === 'discounted' ? 'active discounted' : ''}`}
+                              onClick={() => setPaymentTypeChoice('discounted')}
+                            >
+                              خصم
+                            </button>
+                          </div>
+                          <div className={`payment-status-indicator ${paymentTypeChoice === 'discounted' ? 'discounted' : 'partial'}`}>
+                            <span className="status-icon">{paymentTypeChoice === 'discounted' ? '🏷️' : '⚠️'}</span>
+                            <span>
+                              {paymentTypeChoice === 'discounted' 
+                                ? `خصم: ${remaining} ﷼ — سيتم تسجيله في الخصومات` 
+                                : `المتبقي: ${remaining} ﷼`}
+                            </span>
+                          </div>
+                        </>
                       );
                     } else if (paid >= total && total > 0) {
                       return (
@@ -4491,227 +4014,6 @@ function App() {
             </div>
           </div>
         )}
-
-        {activeTab === 'cards' && (() => {
-          const filteredCards = cards.filter(c => c.month === cardsMonth && c.year === cardsYear).filter(c => !cardSearch.trim() || c.cardNumber.includes(cardSearch.trim()) || c.package.toLowerCase().includes(cardSearch.trim().toLowerCase()));
-          const totalRevenue = filteredCards.reduce((sum, c) => sum + c.value, 0);
-          const uniquePackages = [...new Set(filteredCards.map(c => c.package))];
-          const packageStats = uniquePackages.map(pkg => {
-            const pkgCards = filteredCards.filter(c => c.package === pkg);
-            return { name: pkg, count: pkgCards.length, total: pkgCards.reduce((s, c) => s + c.value, 0) };
-          }).sort((a, b) => b.total - a.total);
-          
-          return (
-          <div className="section cards-section">
-            {/* Servox Logo */}
-            <div className="cards-logo-banner">
-              <img src="/logo.png" alt="Servox" className="cards-logo-img" />
-            </div>
-
-            {/* Header */}
-            <div className="cards-hero">
-              <div className="cards-hero-content">
-                <div className="cards-hero-icon">💳</div>
-                <div>
-                  <h2 className="cards-hero-title">نظام البطاقات</h2>
-                  <p className="cards-hero-subtitle">إدارة وتتبع مبيعات البطاقات والإيرادات</p>
-                </div>
-              </div>
-              <div className="cards-hero-actions">
-                <button className="cards-report-btn" onClick={() => { setReportMonth(cardsMonth); setReportYear(cardsYear); setReportPackage(''); setShowReportFilters(!showReportFilters); }}>📄 طباعة تقرير</button>
-                <button className="cards-add-btn" onClick={() => setShowAddCardForm(!showAddCardForm)}>
-                  {showAddCardForm ? '✕ إغلاق' : '+ بطاقة جديدة'}
-                </button>
-              </div>
-            </div>
-
-            {/* Report Filters */}
-            {showReportFilters && (
-              <div className="cards-report-filters">
-                <div className="report-filters-header">
-                  <h3>📄 فلاتر التقرير</h3>
-                  <button className="report-filters-close" onClick={() => setShowReportFilters(false)}>✕</button>
-                </div>
-                <div className="report-filters-grid">
-                  <div className="report-filter-field">
-                    <label>الشهر</label>
-                    <select value={reportMonth} onChange={(e) => setReportMonth(Number(e.target.value))}>
-                      <option value={0}>كل الشهور</option>
-                      {MONTHS_AR.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div className="report-filter-field">
-                    <label>السنة</label>
-                    <div className="report-year-nav">
-                      <button onClick={() => setReportYear(y => y - 1)}>◀</button>
-                      <span>{reportYear}</span>
-                      <button onClick={() => setReportYear(y => y + 1)}>▶</button>
-                    </div>
-                  </div>
-                  <div className="report-filter-field">
-                    <label>الباقة</label>
-                    <select value={reportPackage} onChange={(e) => setReportPackage(e.target.value)}>
-                      <option value="">كل الباقات</option>
-                      {[...new Set(cards.map(c => c.package))].map(pkg => <option key={pkg} value={pkg}>{pkg}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <button className="report-generate-btn" onClick={printCardsReportPdf}>📄 إنشاء التقرير</button>
-              </div>
-            )}
-
-            {/* Search */}
-            <div className="cards-search-wrapper">
-              <span className="cards-search-icon">🔍</span>
-              <input
-                type="text"
-                className="cards-search-input"
-                placeholder="ابحث برقم البطاقة أو اسم الباقة..."
-                value={cardSearch}
-                onChange={(e) => setCardSearch(e.target.value)}
-              />
-              {cardSearch && <button className="cards-search-clear" onClick={() => setCardSearch('')}>✕</button>}
-            </div>
-
-            {/* Add Card Form */}
-            {showAddCardForm && (
-              <div className="cards-form-wrapper">
-                <div className="cards-form">
-                  <div className="cards-form-grid">
-                    <div className="cards-field">
-                      <label>رقم البطاقة</label>
-                      <input type="text" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="مثال: 9912345678" />
-                    </div>
-                    <div className="cards-field">
-                      <label>الباقة</label>
-                      <input type="text" value={cardPackage} onChange={(e) => setCardPackage(e.target.value)} placeholder="مثال: 100 جيجا" />
-                    </div>
-                    <div className="cards-field">
-                      <label>القيمة (﷼)</label>
-                      <input type="number" value={cardValue} onChange={(e) => setCardValue(e.target.value)} placeholder="0" />
-                    </div>
-                    <div className="cards-field">
-                      <label>التاريخ</label>
-                      <input type="date" value={cardDate} onChange={(e) => setCardDate(e.target.value)} />
-                    </div>
-                    <div className="cards-field cards-field-wide">
-                      <label>ملاحظة <span style={{ opacity: 0.5 }}>(اختياري)</span></label>
-                      <input type="text" value={cardNote} onChange={(e) => setCardNote(e.target.value)} placeholder="أي ملاحظة إضافية..." />
-                    </div>
-                  </div>
-                  <button className="cards-submit-btn" onClick={addCard}>💳 إضافة البطاقة</button>
-                </div>
-              </div>
-            )}
-
-            {/* Stats Cards */}
-            <div className="cards-filters">
-              <select value={cardsMonth} onChange={(e) => setCardsMonth(Number(e.target.value))} className="cards-select">
-                {MONTHS_AR.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-              </select>
-              <div className="cards-year-nav">
-                <button onClick={() => setCardsYear(y => y - 1)}>◀</button>
-                <span>{cardsYear}</span>
-                <button onClick={() => setCardsYear(y => y + 1)}>▶</button>
-              </div>
-            </div>
-
-            <div className="cards-stats">
-              <div className="cards-stat-card cards-stat-total">
-                <div className="cards-stat-icon">💰</div>
-                <div className="cards-stat-info">
-                  <div className="cards-stat-value">{totalRevenue.toLocaleString()} ﷼</div>
-                  <div className="cards-stat-label">إجمالي الإيرادات</div>
-                </div>
-              </div>
-              <div className="cards-stat-card cards-stat-count">
-                <div className="cards-stat-icon">🎫</div>
-                <div className="cards-stat-info">
-                  <div className="cards-stat-value">{filteredCards.length}</div>
-                  <div className="cards-stat-label">عدد البطاقات المباعة</div>
-                </div>
-              </div>
-              <div className="cards-stat-card cards-stat-avg">
-                <div className="cards-stat-icon">📊</div>
-                <div className="cards-stat-info">
-                  <div className="cards-stat-value">{filteredCards.length > 0 ? Math.round(totalRevenue / filteredCards.length).toLocaleString() : 0} ﷼</div>
-                  <div className="cards-stat-label">متوسط قيمة البطاقة</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Package Breakdown */}
-            {packageStats.length > 0 && (
-              <div className="cards-packages">
-                <h3 className="cards-packages-title">📦 إيرادات حسب الباقة</h3>
-                <div className="cards-packages-grid">
-                  {packageStats.map(pkg => (
-                    <div key={pkg.name} className={`cards-package-card ${cardSearch === pkg.name ? 'cards-package-active' : ''}`} onClick={() => setCardSearch(cardSearch === pkg.name ? '' : pkg.name)} style={{ cursor: 'pointer' }}>
-                      <div className="cards-package-name">{pkg.name}</div>
-                      <div className="cards-package-stats">
-                        <span className="cards-package-count">{pkg.count} بطاقة</span>
-                        <span className="cards-package-total">{pkg.total.toLocaleString()} ﷼</span>
-                      </div>
-                      <div className="cards-package-bar">
-                        <div className="cards-package-bar-fill" style={{ width: `${totalRevenue > 0 ? (pkg.total / totalRevenue) * 100 : 0}%` }}></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Cards Table */}
-            <div className="cards-table-wrapper">
-              <h3 className="cards-table-title">📋 سجل البطاقات المباعة</h3>
-              {filteredCards.length === 0 ? (
-                <div className="cards-empty">
-                  <div className="cards-empty-icon">💳</div>
-                  <p>لا توجد بطاقات مباعة في هذا الشهر</p>
-                </div>
-              ) : (
-                <table className="cards-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>رقم البطاقة</th>
-                      <th>الباقة</th>
-                      <th>القيمة</th>
-                      <th>التاريخ</th>
-                      <th>ملاحظة</th>
-                      <th>إجراء</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCards
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .map((card, idx) => (
-                      <tr key={card.id}>
-                        <td className="cards-row-num">{idx + 1}</td>
-                        <td className="cards-row-number">{card.cardNumber}</td>
-                        <td><span className="cards-badge">{card.package}</span></td>
-                        <td className="cards-row-value">{card.value.toLocaleString()} ﷼</td>
-                        <td>{formatDate(card.date)}</td>
-                        <td className="cards-row-note">{card.note || '—'}</td>
-                        <td>
-                          <button className="cards-delete-btn" onClick={() => setCardDeleteConfirm(card)}>🗑️</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={3} className="cards-footer-label">الإجمالي</td>
-                      <td className="cards-footer-value">{totalRevenue.toLocaleString()} ﷼</td>
-                      <td colSpan={3}></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              )}
-            </div>
-          </div>
-          );
-        })()}
 
       {/* Transfer Customer Modal */}
       {transferModal && transferCustomer && (
