@@ -1589,11 +1589,18 @@ function App() {
       }
       updatedCustomer.monthlyPartialAmounts = updatedPartialAmounts;
       
+      // التحقق من الحالة السابقة للشهر
+      const previousMonthStatus = confirmStatusChange.customer.monthlyPayments?.[yearMonth];
+      
       // إذا اختار خصم، نسجل الخصم تلقائياً
       if (finalStatus === 'discounted') {
         const discountAmount = subscriptionValue - paidAmount;
         updatedCustomer.hasDiscount = true;
         updatedCustomer.discountAmount = discountAmount;
+      } else if (previousMonthStatus === 'discounted' && finalStatus !== 'discounted') {
+        // إذا كانت الحالة السابقة خصم والحالة الجديدة مختلفة، نحذف الخصم
+        updatedCustomer.hasDiscount = false;
+        updatedCustomer.discountAmount = 0;
       }
       
       await setDoc(doc(db, 'customers', confirmStatusChange.customer.id), updatedCustomer);
