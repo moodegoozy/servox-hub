@@ -3557,6 +3557,63 @@ body {
   .summary-card {
     min-width: 100%;
   }
+
+  /* ── صفحة إيقاف مؤقت على الجوال ── */
+  .suspended-section {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .suspended-list,
+  .suspended-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .suspended-table {
+    min-width: 480px;
+  }
+
+  /* ── جدول متابعة الاشتراكات على الجوال ── */
+  .yearly-section {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .yearly-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  /* ── فلاتر صفحة الفواتير على الجوال ── */
+  .invoice-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .invoice-search {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .invoice-date-selector {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .date-inputs {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .date-inputs select {
+    min-width: 0;
+    flex: 1;
+  }
 }
 
 /* ===== REVENUES TAB ===== */
