@@ -4000,13 +4000,18 @@ function App() {
           const freeU = userStates.filter(s => s === 'free').length;
           const usedU = userStates.filter(s => s === 'used').length;
           const dupU = userStates.filter(s => s === 'dup').length;
-          const suspU = userStates.filter(s => s === 'suspended').length;
+          const suspU = users.filter(u => { const l = userMap.get(u); return stateOf(l) === 'suspended' || hasSuspended(l); }).length;
           const freeI = ipStates.filter(s => s === 'free').length;
           const usedI = ipStates.filter(s => s === 'used').length;
           const dupI = ipStates.filter(s => s === 'dup').length;
-          const suspI = ipStates.filter(s => s === 'suspended').length;
+          const suspI = ips.filter(ip => { const l = ipMap.get(ip); return stateOf(l) === 'suspended' || hasSuspended(l); }).length;
           const toggleFilter = (f: 'free' | 'used' | 'dup' | 'suspended') => setPoolFilter(prev => prev === f ? 'all' : f);
-          const passFilter = (s: 'free' | 'used' | 'dup' | 'suspended') => poolFilter === 'all' || poolFilter === s;
+          const hasSuspended = (list: Customer[] | undefined) => !!list && list.some(c => !!c.isSuspended);
+          const passFilter = (s: 'free' | 'used' | 'dup' | 'suspended', list?: Customer[]) => {
+            if (poolFilter === 'all') return true;
+            if (poolFilter === 'suspended') return s === 'suspended' || hasSuspended(list);
+            return poolFilter === s;
+          };
           return (
             <div className="section pool-section">
               <h2>🗂️ user number &amp; ip number</h2>
@@ -4083,21 +4088,23 @@ function App() {
                     {users.filter(matchUser).map(u => {
                       const list = userMap.get(u) || [];
                       const s = stateOf(list);
-                      if (!passFilter(s)) return null;
+                      if (!passFilter(s, list)) return null;
+                      const hasSusp = hasSuspended(list);
                       return (
                         <button
                           key={u}
                           type="button"
-                          className={`pool-cell ${s}`}
+                          className={`pool-cell ${s}${hasSusp && s !== 'suspended' ? ' has-suspended' : ''}`}
                           onClick={() => { if (list.length) setPoolModal({ kind: 'user', value: u, customers: list }); }}
-                          title={list.length ? `${list.length} عميل` : 'غير مستخدم'}
+                          title={list.length ? `${list.length} عميل${hasSusp ? ' — يوجد موقوف' : ''}` : 'غير مستخدم'}
                         >
                           <span className="pool-cell-label">{u}</span>
                           {list.length > 1 && <span className="pool-cell-badge">{list.length}</span>}
+                          {hasSusp && s !== 'suspended' && <span className="pool-cell-susp" title="يوجد عميل موقوف">⏸️</span>}
                         </button>
                       );
                     })}
-                    {users.filter(matchUser).filter(u => passFilter(stateOf(userMap.get(u)))).length === 0 && (
+                    {users.filter(matchUser).filter(u => passFilter(stateOf(userMap.get(u)), userMap.get(u))).length === 0 && (
                       <div className="pool-empty">لا توجد نتائج</div>
                     )}
                   </div>
@@ -4117,21 +4124,23 @@ function App() {
                     {ips.filter(matchIp).map(ip => {
                       const list = ipMap.get(ip) || [];
                       const s = stateOf(list);
-                      if (!passFilter(s)) return null;
+                      if (!passFilter(s, list)) return null;
+                      const hasSusp = hasSuspended(list);
                       return (
                         <button
                           key={ip}
                           type="button"
-                          className={`pool-cell ${s}`}
+                          className={`pool-cell ${s}${hasSusp && s !== 'suspended' ? ' has-suspended' : ''}`}
                           onClick={() => { if (list.length) setPoolModal({ kind: 'ip', value: ip, customers: list }); }}
-                          title={list.length ? `${list.length} عميل` : 'غير مستخدم'}
+                          title={list.length ? `${list.length} عميل${hasSusp ? ' — يوجد موقوف' : ''}` : 'غير مستخدم'}
                         >
                           <span className="pool-cell-label">{ip}</span>
                           {list.length > 1 && <span className="pool-cell-badge">{list.length}</span>}
+                          {hasSusp && s !== 'suspended' && <span className="pool-cell-susp" title="يوجد عميل موقوف">⏸️</span>}
                         </button>
                       );
                     })}
-                    {ips.filter(matchIp).filter(ip => passFilter(stateOf(ipMap.get(ip)))).length === 0 && (
+                    {ips.filter(matchIp).filter(ip => passFilter(stateOf(ipMap.get(ip)), ipMap.get(ip))).length === 0 && (
                       <div className="pool-empty">لا توجد نتائج</div>
                     )}
                   </div>
