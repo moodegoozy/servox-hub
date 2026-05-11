@@ -1247,15 +1247,21 @@ function App() {
 
     setLoading(true);
 
+    // مقارن عربي للترتيب الأبجدي (يدعم الأرقام داخل النصوص)
+    const arCollator = new Intl.Collator('ar', { sensitivity: 'base', numeric: true });
+    const byName = <T extends { name?: string }>(a: T, b: T) => arCollator.compare(a.name || '', b.name || '');
+
     // Listen to cities collection
     const unsubscribeCities = onSnapshot(collection(db, 'cities'), (snapshot) => {
       const citiesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as City));
+      citiesData.sort(byName);
       setCities(citiesData);
     });
 
     // Listen to customers collection
     const unsubscribeCustomers = onSnapshot(collection(db, 'customers'), (snapshot) => {
       const customersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+      customersData.sort(byName);
       setCustomers(customersData);
       setLoading(false);
     });
@@ -1263,18 +1269,21 @@ function App() {
     // Listen to expenses collection
     const unsubscribeExpenses = onSnapshot(collection(db, 'expenses'), (snapshot) => {
       const expensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+      expensesData.sort(byName);
       setExpenses(expensesData);
     });
 
     // Listen to incomes collection
     const unsubscribeIncomes = onSnapshot(collection(db, 'incomes'), (snapshot) => {
       const incomesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Income));
+      incomesData.sort(byName);
       setIncomes(incomesData);
     });
 
     // Listen to cards collection
     const unsubscribeCards = onSnapshot(collection(db, 'cards'), (snapshot) => {
       const cardsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Card));
+      cardsData.sort(byName);
       setCards(cardsData);
     });
 
