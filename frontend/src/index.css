@@ -5758,3 +5758,19 @@ textarea {
   color: var(--text);
 }
 .pool-notes-cell .muted { color: var(--text-light, #888); }
+
+/* علامة موقوف داخل نافذة المخزن */
+.pool-suspended-badge {
+  display: inline-block;
+  background: rgba(239,68,68,0.12);
+  color: #991b1b;
+  border: 1px solid rgba(239,68,68,0.35);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-inline-end: 6px;
+}
+.pool-modal-table tr.row-suspended { background: rgba(239,68,68,0.06); }
+[data-theme="dark"] .pool-suspended-badge { color: #fca5a5; background: rgba(239,68,68,0.18); }
+[data-theme="dark"] .pool-modal-table tr.row-suspended { background: rgba(239,68,68,0.10); }

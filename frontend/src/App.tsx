@@ -4140,9 +4140,12 @@ function App() {
                           {poolModal.customers.map((c, i) => {
                             const city = cities.find(x => x.id === c.cityId);
                             return (
-                              <tr key={c.id}>
+                              <tr key={c.id} className={c.isSuspended ? 'row-suspended' : ''}>
                                 <td>{i + 1}</td>
-                                <td>{c.name}</td>
+                                <td>
+                                  {c.isSuspended && <span className="pool-suspended-badge" title="موقوف">⏸️ موقوف</span>}
+                                  {c.name}
+                                </td>
                                 <td>{city?.name || '-'}</td>
                                 <td>{c.phone || '-'}</td>
                                 <td>{c.userName || '-'}</td>
