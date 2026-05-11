@@ -106,6 +106,7 @@ function App() {
   // مخزن اليوزرات والـ IP
   const [poolCityIds, setPoolCityIds] = useState<string[]>([]);
   const [poolSearch, setPoolSearch] = useState('');
+  const [poolFilter, setPoolFilter] = useState<'all' | 'free' | 'used' | 'dup' | 'suspended'>('all');
   const [poolModal, setPoolModal] = useState<{ kind: 'user' | 'ip'; value: string; customers: Customer[] } | null>(null);
   const POOL_SIZE = 300;
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -3982,8 +3983,11 @@ function App() {
           const matchUser = (u: string) => !q || u.toLowerCase().includes(q);
           const matchIp = (ip: string) => !q || ip.includes(q);
           // التكرار يُحسب فقط إذا كان في نفس المدينة. عبر مدن مختلفة = مستخدم وليس مكرر.
-          const classify = (list: Customer[]): 'free' | 'used' | 'dup' => {
+          // إذا كان كل العملاء المستخدمين موقوفين → الحالة "موقوف" بدل "مستخدم/مكرر"
+          const classify = (list: Customer[]): 'free' | 'used' | 'dup' | 'suspended' => {
             if (!list || list.length === 0) return 'free';
+            const allSuspended = list.every(c => !!c.isSuspended);
+            if (allSuspended) return 'suspended';
             if (list.length === 1) return 'used';
             const byCity = new Map<string, number>();
             list.forEach(c => byCity.set(c.cityId || '', (byCity.get(c.cityId || '') || 0) + 1));
@@ -3996,9 +4000,13 @@ function App() {
           const freeU = userStates.filter(s => s === 'free').length;
           const usedU = userStates.filter(s => s === 'used').length;
           const dupU = userStates.filter(s => s === 'dup').length;
+          const suspU = userStates.filter(s => s === 'suspended').length;
           const freeI = ipStates.filter(s => s === 'free').length;
           const usedI = ipStates.filter(s => s === 'used').length;
           const dupI = ipStates.filter(s => s === 'dup').length;
+          const suspI = ipStates.filter(s => s === 'suspended').length;
+          const toggleFilter = (f: 'free' | 'used' | 'dup' | 'suspended') => setPoolFilter(prev => prev === f ? 'all' : f);
+          const passFilter = (s: 'free' | 'used' | 'dup' | 'suspended') => poolFilter === 'all' || poolFilter === s;
           return (
             <div className="section pool-section">
               <h2>🗂️ user number &amp; ip number</h2>
@@ -4052,6 +4060,12 @@ function App() {
                 <span className="pool-legend-item"><span className="pool-dot free"></span> غير مستخدم</span>
                 <span className="pool-legend-item"><span className="pool-dot used"></span> مستخدم</span>
                 <span className="pool-legend-item"><span className="pool-dot dup"></span> مكرر</span>
+                <span className="pool-legend-item"><span className="pool-dot suspended"></span> موقوف</span>
+                {poolFilter !== 'all' && (
+                  <button type="button" className="pool-filter-clear" onClick={() => setPoolFilter('all')}>
+                    إلغاء الفلتر ✕
+                  </button>
+                )}
               </div>
 
               <div className="pool-columns">
@@ -4059,15 +4073,17 @@ function App() {
                   <div className="pool-column-header">
                     <h3>اليوزرات (ppp1 - ppp{POOL_SIZE})</h3>
                     <div className="pool-stats">
-                      <span className="pool-stat free">غير مستخدم: {freeU}</span>
-                      <span className="pool-stat used">مستخدم: {usedU}</span>
-                      <span className="pool-stat dup">مكرر: {dupU}</span>
+                      <button type="button" className={`pool-stat free ${poolFilter === 'free' ? 'active' : ''}`} onClick={() => toggleFilter('free')}>غير مستخدم: {freeU}</button>
+                      <button type="button" className={`pool-stat used ${poolFilter === 'used' ? 'active' : ''}`} onClick={() => toggleFilter('used')}>مستخدم: {usedU}</button>
+                      <button type="button" className={`pool-stat dup ${poolFilter === 'dup' ? 'active' : ''}`} onClick={() => toggleFilter('dup')}>مكرر: {dupU}</button>
+                      <button type="button" className={`pool-stat suspended ${poolFilter === 'suspended' ? 'active' : ''}`} onClick={() => toggleFilter('suspended')}>موقوف: {suspU}</button>
                     </div>
                   </div>
                   <div className="pool-grid">
                     {users.filter(matchUser).map(u => {
                       const list = userMap.get(u) || [];
                       const s = stateOf(list);
+                      if (!passFilter(s)) return null;
                       return (
                         <button
                           key={u}
@@ -4081,7 +4097,7 @@ function App() {
                         </button>
                       );
                     })}
-                    {users.filter(matchUser).length === 0 && (
+                    {users.filter(matchUser).filter(u => passFilter(stateOf(userMap.get(u)))).length === 0 && (
                       <div className="pool-empty">لا توجد نتائج</div>
                     )}
                   </div>
@@ -4091,15 +4107,17 @@ function App() {
                   <div className="pool-column-header">
                     <h3>أرقام IP (1 - {POOL_SIZE})</h3>
                     <div className="pool-stats">
-                      <span className="pool-stat free">غير مستخدم: {freeI}</span>
-                      <span className="pool-stat used">مستخدم: {usedI}</span>
-                      <span className="pool-stat dup">مكرر: {dupI}</span>
+                      <button type="button" className={`pool-stat free ${poolFilter === 'free' ? 'active' : ''}`} onClick={() => toggleFilter('free')}>غير مستخدم: {freeI}</button>
+                      <button type="button" className={`pool-stat used ${poolFilter === 'used' ? 'active' : ''}`} onClick={() => toggleFilter('used')}>مستخدم: {usedI}</button>
+                      <button type="button" className={`pool-stat dup ${poolFilter === 'dup' ? 'active' : ''}`} onClick={() => toggleFilter('dup')}>مكرر: {dupI}</button>
+                      <button type="button" className={`pool-stat suspended ${poolFilter === 'suspended' ? 'active' : ''}`} onClick={() => toggleFilter('suspended')}>موقوف: {suspI}</button>
                     </div>
                   </div>
                   <div className="pool-grid">
                     {ips.filter(matchIp).map(ip => {
                       const list = ipMap.get(ip) || [];
                       const s = stateOf(list);
+                      if (!passFilter(s)) return null;
                       return (
                         <button
                           key={ip}
@@ -4113,7 +4131,7 @@ function App() {
                         </button>
                       );
                     })}
-                    {ips.filter(matchIp).length === 0 && (
+                    {ips.filter(matchIp).filter(ip => passFilter(stateOf(ipMap.get(ip)))).length === 0 && (
                       <div className="pool-empty">لا توجد نتائج</div>
                     )}
                   </div>

@@ -5774,3 +5774,30 @@ textarea {
 .pool-modal-table tr.row-suspended { background: rgba(239,68,68,0.06); }
 [data-theme="dark"] .pool-suspended-badge { color: #fca5a5; background: rgba(239,68,68,0.18); }
 [data-theme="dark"] .pool-modal-table tr.row-suspended { background: rgba(239,68,68,0.10); }
+
+/* لون الخانة الموقوفة + شارة + زر فلتر الإحصاءات */
+.pool-dot.suspended { background: #f59e0b; }
+.pool-cell.suspended { background: #f59e0b; }
+.pool-stat {
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+}
+.pool-stat:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.pool-stat.active { box-shadow: 0 0 0 2px currentColor inset; filter: brightness(1.08); }
+.pool-stat.suspended { background: rgba(245,158,11,0.12); color: #92400e; border-color: rgba(245,158,11,0.35); }
+[data-theme="dark"] .pool-stat.suspended { color: #fcd34d; background: rgba(245,158,11,0.18); }
+.pool-filter-clear {
+  background: transparent;
+  border: 1px dashed var(--text-light, #888);
+  color: var(--text-light, #888);
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  margin-inline-start: auto;
+}
+.pool-filter-clear:hover { color: var(--danger, #ef4444); border-color: var(--danger, #ef4444); }
