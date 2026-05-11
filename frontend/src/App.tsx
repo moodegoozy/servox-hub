@@ -3938,6 +3938,16 @@ function App() {
 
         {activeTab === 'pool' && (() => {
           const scoped = poolCityId ? customers.filter(c => c.cityId === poolCityId) : customers;
+          // تطبيع رقم الـ IP: لو فيه نقاط مثل 192.168.1.26 نأخذ آخر مقطع فقط
+          const normalizeIp = (ip: string) => {
+            const s = (ip || '').trim();
+            if (!s) return '';
+            if (s.includes('.')) {
+              const parts = s.split('.').map(p => p.trim()).filter(Boolean);
+              return parts[parts.length - 1] || '';
+            }
+            return s;
+          };
           const userMap = new Map<string, Customer[]>();
           const ipMap = new Map<string, Customer[]>();
           const addTo = (map: Map<string, Customer[]>, key: string, c: Customer) => {
@@ -3948,11 +3958,13 @@ function App() {
             map.set(k, arr);
           };
           scoped.forEach(c => {
-            if (c.userName) addTo(userMap, c.userName, c);
-            if (c.ipNumber) addTo(ipMap, c.ipNumber, c);
+            if (c.userName) addTo(userMap, c.userName.trim(), c);
+            const mainIp = normalizeIp(c.ipNumber || '');
+            if (mainIp) addTo(ipMap, mainIp, c);
             (c.additionalRouters || []).forEach(r => {
-              if (r.userName) addTo(userMap, r.userName, c);
-              if (r.ipNumber) addTo(ipMap, r.ipNumber, c);
+              if (r.userName) addTo(userMap, r.userName.trim(), c);
+              const rIp = normalizeIp(r.ipNumber || '');
+              if (rIp) addTo(ipMap, rIp, c);
             });
           });
           const q = poolSearch.trim().toLowerCase();
@@ -3960,13 +3972,24 @@ function App() {
           const ips = Array.from({ length: POOL_SIZE }, (_, i) => String(i + 1));
           const matchUser = (u: string) => !q || u.toLowerCase().includes(q);
           const matchIp = (ip: string) => !q || ip.includes(q);
-          const stateOf = (count: number) => count === 0 ? 'free' : count === 1 ? 'used' : 'dup';
-          const freeU = users.filter(u => !userMap.has(u)).length;
-          const usedU = users.filter(u => (userMap.get(u)?.length || 0) === 1).length;
-          const dupU = users.filter(u => (userMap.get(u)?.length || 0) >= 2).length;
-          const freeI = ips.filter(ip => !ipMap.has(ip)).length;
-          const usedI = ips.filter(ip => (ipMap.get(ip)?.length || 0) === 1).length;
-          const dupI = ips.filter(ip => (ipMap.get(ip)?.length || 0) >= 2).length;
+          // التكرار يُحسب فقط إذا كان في نفس المدينة. عبر مدن مختلفة = مستخدم وليس مكرر.
+          const classify = (list: Customer[]): 'free' | 'used' | 'dup' => {
+            if (!list || list.length === 0) return 'free';
+            if (list.length === 1) return 'used';
+            const byCity = new Map<string, number>();
+            list.forEach(c => byCity.set(c.cityId || '', (byCity.get(c.cityId || '') || 0) + 1));
+            const anyDup = Array.from(byCity.values()).some(n => n >= 2);
+            return anyDup ? 'dup' : 'used';
+          };
+          const stateOf = (list: Customer[] | undefined) => classify(list || []);
+          const userStates = users.map(u => stateOf(userMap.get(u)));
+          const ipStates = ips.map(ip => stateOf(ipMap.get(ip)));
+          const freeU = userStates.filter(s => s === 'free').length;
+          const usedU = userStates.filter(s => s === 'used').length;
+          const dupU = userStates.filter(s => s === 'dup').length;
+          const freeI = ipStates.filter(s => s === 'free').length;
+          const usedI = ipStates.filter(s => s === 'used').length;
+          const dupI = ipStates.filter(s => s === 'dup').length;
           return (
             <div className="section pool-section">
               <h2>🗂️ مخزن اليوزرات والـ IP</h2>
@@ -4009,7 +4032,7 @@ function App() {
                   <div className="pool-grid">
                     {users.filter(matchUser).map(u => {
                       const list = userMap.get(u) || [];
-                      const s = stateOf(list.length);
+                      const s = stateOf(list);
                       return (
                         <button
                           key={u}
@@ -4041,7 +4064,7 @@ function App() {
                   <div className="pool-grid">
                     {ips.filter(matchIp).map(ip => {
                       const list = ipMap.get(ip) || [];
-                      const s = stateOf(list.length);
+                      const s = stateOf(list);
                       return (
                         <button
                           key={ip}
