@@ -102,7 +102,12 @@ function App() {
   const [site, setSite] = useState('');
   const [notes, setNotes] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db' | 'pool'>('dashboard');
+  // مخزن اليوزرات والـ IP
+  const [poolCityId, setPoolCityId] = useState<string | null>(null);
+  const [poolSearch, setPoolSearch] = useState('');
+  const [poolModal, setPoolModal] = useState<{ kind: 'user' | 'ip'; value: string; customers: Customer[] } | null>(null);
+  const POOL_SIZE = 300;
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [yearlyCityId, setYearlyCityId] = useState<string | null>(null);
   const [invoiceCityId, setInvoiceCityId] = useState<string | null>(null);
@@ -2132,6 +2137,8 @@ function App() {
                 ? 'ابحث في العملاء بالخصم...'
                 : activeTab === 'suspended'
                 ? 'ابحث في العملاء الموقوفين...'
+                : activeTab === 'pool'
+                ? 'استخدم البحث داخل التبويب...'
                 : 'ابحث عن عميل بالاسم أو الرقم...'
             }
             value={searchQuery}
@@ -2176,6 +2183,7 @@ function App() {
         <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>المصروفات</button>
         <button className={`tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => setActiveTab('discounts')}>الخصومات</button>
         <button className={`tab-btn ${activeTab === 'suspended' ? 'active' : ''}`} onClick={() => setActiveTab('suspended')}>إيقاف مؤقت</button>
+        <button className={`tab-btn ${activeTab === 'pool' ? 'active' : ''}`} onClick={() => setActiveTab('pool')}>مخزن اليوزر/IP</button>
       </div>
 
       {loading ? (
@@ -3927,6 +3935,180 @@ function App() {
             </div>
           </div>
         )}
+
+        {activeTab === 'pool' && (() => {
+          const scoped = poolCityId ? customers.filter(c => c.cityId === poolCityId) : customers;
+          const userMap = new Map<string, Customer[]>();
+          const ipMap = new Map<string, Customer[]>();
+          const addTo = (map: Map<string, Customer[]>, key: string, c: Customer) => {
+            const k = (key || '').trim();
+            if (!k) return;
+            const arr = map.get(k) || [];
+            if (!arr.find(x => x.id === c.id)) arr.push(c);
+            map.set(k, arr);
+          };
+          scoped.forEach(c => {
+            if (c.userName) addTo(userMap, c.userName, c);
+            if (c.ipNumber) addTo(ipMap, c.ipNumber, c);
+            (c.additionalRouters || []).forEach(r => {
+              if (r.userName) addTo(userMap, r.userName, c);
+              if (r.ipNumber) addTo(ipMap, r.ipNumber, c);
+            });
+          });
+          const q = poolSearch.trim().toLowerCase();
+          const users = Array.from({ length: POOL_SIZE }, (_, i) => `ppp${i + 1}`);
+          const ips = Array.from({ length: POOL_SIZE }, (_, i) => String(i + 1));
+          const matchUser = (u: string) => !q || u.toLowerCase().includes(q);
+          const matchIp = (ip: string) => !q || ip.includes(q);
+          const stateOf = (count: number) => count === 0 ? 'free' : count === 1 ? 'used' : 'dup';
+          const freeU = users.filter(u => !userMap.has(u)).length;
+          const usedU = users.filter(u => (userMap.get(u)?.length || 0) === 1).length;
+          const dupU = users.filter(u => (userMap.get(u)?.length || 0) >= 2).length;
+          const freeI = ips.filter(ip => !ipMap.has(ip)).length;
+          const usedI = ips.filter(ip => (ipMap.get(ip)?.length || 0) === 1).length;
+          const dupI = ips.filter(ip => (ipMap.get(ip)?.length || 0) >= 2).length;
+          return (
+            <div className="section pool-section">
+              <h2>🗂️ مخزن اليوزرات والـ IP</h2>
+              <p className="section-info">عرض حالة كل يوزر ورقم IP من 1 إلى {POOL_SIZE}. اضغط على أي خانة مستخدمة أو مكررة لعرض العملاء.</p>
+
+              <div className="pool-filters">
+                <select
+                  value={poolCityId || ''}
+                  onChange={(e) => setPoolCityId(e.target.value || null)}
+                  className="input"
+                >
+                  <option value="">جميع المدن</option>
+                  {cities.map(city => <option key={city.id} value={city.id}>{city.name}</option>)}
+                </select>
+                <input
+                  type="text"
+                  className="input pool-search"
+                  placeholder="ابحث برقم IP أو اسم اليوزر..."
+                  value={poolSearch}
+                  onChange={(e) => setPoolSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="pool-legend">
+                <span className="pool-legend-item"><span className="pool-dot free"></span> غير مستخدم</span>
+                <span className="pool-legend-item"><span className="pool-dot used"></span> مستخدم</span>
+                <span className="pool-legend-item"><span className="pool-dot dup"></span> مكرر</span>
+              </div>
+
+              <div className="pool-columns">
+                <div className="pool-column">
+                  <div className="pool-column-header">
+                    <h3>اليوزرات (ppp1 - ppp{POOL_SIZE})</h3>
+                    <div className="pool-stats">
+                      <span className="pool-stat free">غير مستخدم: {freeU}</span>
+                      <span className="pool-stat used">مستخدم: {usedU}</span>
+                      <span className="pool-stat dup">مكرر: {dupU}</span>
+                    </div>
+                  </div>
+                  <div className="pool-grid">
+                    {users.filter(matchUser).map(u => {
+                      const list = userMap.get(u) || [];
+                      const s = stateOf(list.length);
+                      return (
+                        <button
+                          key={u}
+                          type="button"
+                          className={`pool-cell ${s}`}
+                          onClick={() => { if (list.length) setPoolModal({ kind: 'user', value: u, customers: list }); }}
+                          title={list.length ? `${list.length} عميل` : 'غير مستخدم'}
+                        >
+                          <span className="pool-cell-label">{u}</span>
+                          {list.length > 1 && <span className="pool-cell-badge">{list.length}</span>}
+                        </button>
+                      );
+                    })}
+                    {users.filter(matchUser).length === 0 && (
+                      <div className="pool-empty">لا توجد نتائج</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pool-column">
+                  <div className="pool-column-header">
+                    <h3>أرقام IP (1 - {POOL_SIZE})</h3>
+                    <div className="pool-stats">
+                      <span className="pool-stat free">غير مستخدم: {freeI}</span>
+                      <span className="pool-stat used">مستخدم: {usedI}</span>
+                      <span className="pool-stat dup">مكرر: {dupI}</span>
+                    </div>
+                  </div>
+                  <div className="pool-grid">
+                    {ips.filter(matchIp).map(ip => {
+                      const list = ipMap.get(ip) || [];
+                      const s = stateOf(list.length);
+                      return (
+                        <button
+                          key={ip}
+                          type="button"
+                          className={`pool-cell ${s}`}
+                          onClick={() => { if (list.length) setPoolModal({ kind: 'ip', value: ip, customers: list }); }}
+                          title={list.length ? `${list.length} عميل` : 'غير مستخدم'}
+                        >
+                          <span className="pool-cell-label">{ip}</span>
+                          {list.length > 1 && <span className="pool-cell-badge">{list.length}</span>}
+                        </button>
+                      );
+                    })}
+                    {ips.filter(matchIp).length === 0 && (
+                      <div className="pool-empty">لا توجد نتائج</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {poolModal && (
+                <div className="modal-overlay" onClick={() => setPoolModal(null)}>
+                  <div className="modal pool-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h3>
+                        {poolModal.kind === 'user' ? `العملاء المستخدمين لليوزر: ${poolModal.value}` : `العملاء المستخدمين للـ IP: ${poolModal.value}`}
+                      </h3>
+                      <button className="modal-close" onClick={() => setPoolModal(null)}>×</button>
+                    </div>
+                    <div className="modal-body">
+                      {poolModal.customers.length > 1 && (
+                        <div className="pool-modal-warn">⚠️ هذا {poolModal.kind === 'user' ? 'اليوزر' : 'الـ IP'} مكرر على {poolModal.customers.length} عملاء</div>
+                      )}
+                      <table className="pool-modal-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>الاسم</th>
+                            <th>المدينة</th>
+                            <th>الجوال</th>
+                            <th>Username</th>
+                            <th>IP</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {poolModal.customers.map((c, i) => {
+                            const city = cities.find(x => x.id === c.cityId);
+                            return (
+                              <tr key={c.id}>
+                                <td>{i + 1}</td>
+                                <td>{c.name}</td>
+                                <td>{city?.name || '-'}</td>
+                                <td>{c.phone || '-'}</td>
+                                <td>{c.userName || '-'}</td>
+                                <td>{c.ipNumber || '-'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {activeTab === 'suspended' && (
           <div className="section suspended-section">

@@ -5556,3 +5556,153 @@ textarea {
               border-color var(--transition-smooth),
               box-shadow var(--transition-smooth);
 }
+
+/* ============================================
+   مخزن اليوزرات والـ IP (Pool Tab)
+   ============================================ */
+.pool-section { padding: 16px; }
+.pool-section h2 { margin: 0 0 6px; }
+.pool-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.pool-filters .input { min-width: 200px; flex: 1; }
+.pool-filters .pool-search { flex: 2; }
+
+.pool-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 8px 0 18px;
+  font-size: 14px;
+  color: var(--text);
+}
+.pool-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.pool-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+.pool-dot.free { background: #22c55e; }
+.pool-dot.used { background: #ef4444; }
+.pool-dot.dup  { background: #3b82f6; }
+
+.pool-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.pool-column {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 14px;
+}
+.pool-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pool-column-header h3 { margin: 0; font-size: 16px; }
+.pool-stats { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.pool-stat {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.pool-stat.free { background: rgba(34,197,94,0.12); color: #166534; border-color: rgba(34,197,94,0.35); }
+.pool-stat.used { background: rgba(239,68,68,0.12); color: #991b1b; border-color: rgba(239,68,68,0.35); }
+.pool-stat.dup  { background: rgba(59,130,246,0.12); color: #1e40af; border-color: rgba(59,130,246,0.35); }
+
+.pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 6px;
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+.pool-cell {
+  position: relative;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 8px;
+  padding: 8px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  color: #fff;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pool-cell:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); filter: brightness(1.05); }
+.pool-cell.free { background: #22c55e; cursor: default; }
+.pool-cell.free:hover { transform: none; box-shadow: none; }
+.pool-cell.used { background: #ef4444; }
+.pool-cell.dup  { background: #3b82f6; }
+.pool-cell-label { display: block; }
+.pool-cell-badge {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 4px;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.pool-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-light, #888);
+  padding: 24px;
+}
+
+.pool-modal { max-width: 720px; width: 95%; }
+.pool-modal-warn {
+  background: rgba(59,130,246,0.12);
+  color: #1e40af;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.pool-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pool-modal-table th,
+.pool-modal-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  text-align: start;
+  font-size: 14px;
+}
+.pool-modal-table th { background: var(--surface-2, #f9fafb); font-weight: 700; }
+
+[data-theme="dark"] .pool-column { background: var(--surface, #1f2937); border-color: rgba(255,255,255,0.08); }
+[data-theme="dark"] .pool-stat.free { color: #86efac; }
+[data-theme="dark"] .pool-stat.used { color: #fca5a5; }
+[data-theme="dark"] .pool-stat.dup  { color: #93c5fd; }
+[data-theme="dark"] .pool-modal-table th { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .pool-modal-warn { background: rgba(59,130,246,0.18); color: #bfdbfe; }
+
+@media (max-width: 768px) {
+  .pool-section { padding: 12px; }
+  .pool-columns { grid-template-columns: 1fr; gap: 14px; }
+  .pool-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); max-height: 50vh; }
+  .pool-cell { font-size: 11px; padding: 7px 4px; }
+  .pool-filters { flex-direction: column; }
+  .pool-filters .input { width: 100%; }
+}
