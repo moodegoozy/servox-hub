@@ -104,7 +104,7 @@ function App() {
   const [toastMessage, setToastMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db' | 'pool'>('dashboard');
   // مخزن اليوزرات والـ IP
-  const [poolCityId, setPoolCityId] = useState<string | null>(null);
+  const [poolCityIds, setPoolCityIds] = useState<string[]>([]);
   const [poolSearch, setPoolSearch] = useState('');
   const [poolModal, setPoolModal] = useState<{ kind: 'user' | 'ip'; value: string; customers: Customer[] } | null>(null);
   const POOL_SIZE = 300;
@@ -2183,7 +2183,7 @@ function App() {
         <button className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>المصروفات</button>
         <button className={`tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => setActiveTab('discounts')}>الخصومات</button>
         <button className={`tab-btn ${activeTab === 'suspended' ? 'active' : ''}`} onClick={() => setActiveTab('suspended')}>إيقاف مؤقت</button>
-        <button className={`tab-btn ${activeTab === 'pool' ? 'active' : ''}`} onClick={() => setActiveTab('pool')}>مخزن اليوزر/IP</button>
+        <button className={`tab-btn ${activeTab === 'pool' ? 'active' : ''}`} onClick={() => setActiveTab('pool')}>user number &amp; ip number</button>
       </div>
 
       {loading ? (
@@ -3937,7 +3937,7 @@ function App() {
         )}
 
         {activeTab === 'pool' && (() => {
-          const scoped = poolCityId ? customers.filter(c => c.cityId === poolCityId) : customers;
+          const scoped = poolCityIds.length ? customers.filter(c => poolCityIds.includes(c.cityId)) : customers;
           // تطبيع رقم الـ IP: لو فيه نقاط مثل 192.168.1.26 نأخذ آخر مقطع فقط
           const normalizeIp = (ip: string) => {
             const s = (ip || '').trim();
@@ -3992,18 +3992,44 @@ function App() {
           const dupI = ipStates.filter(s => s === 'dup').length;
           return (
             <div className="section pool-section">
-              <h2>🗂️ مخزن اليوزرات والـ IP</h2>
-              <p className="section-info">عرض حالة كل يوزر ورقم IP من 1 إلى {POOL_SIZE}. اضغط على أي خانة مستخدمة أو مكررة لعرض العملاء.</p>
+              <h2>🗂️ user number &amp; ip number</h2>
+              <p className="section-info">عرض حالة كل يوزر ورقم IP من 1 إلى {POOL_SIZE}. اضغط على أي خانة مستخدمة أو مكررة لعرض العملاء. يمكنك اختيار أكثر من مدينة.</p>
 
               <div className="pool-filters">
-                <select
-                  value={poolCityId || ''}
-                  onChange={(e) => setPoolCityId(e.target.value || null)}
-                  className="input"
-                >
-                  <option value="">جميع المدن</option>
-                  {cities.map(city => <option key={city.id} value={city.id}>{city.name}</option>)}
-                </select>
+                <div className="pool-cities">
+                  <div className="pool-cities-header">
+                    <span className="pool-cities-label">المدن:</span>
+                    <button
+                      type="button"
+                      className="pool-city-chip all"
+                      onClick={() => setPoolCityIds([])}
+                      data-active={poolCityIds.length === 0}
+                    >
+                      جميع المدن
+                    </button>
+                    {poolCityIds.length > 0 && (
+                      <button type="button" className="pool-city-clear" onClick={() => setPoolCityIds([])}>
+                        مسح ({poolCityIds.length})
+                      </button>
+                    )}
+                  </div>
+                  <div className="pool-city-chips">
+                    {cities.map(city => {
+                      const active = poolCityIds.includes(city.id);
+                      return (
+                        <button
+                          key={city.id}
+                          type="button"
+                          className="pool-city-chip"
+                          data-active={active}
+                          onClick={() => setPoolCityIds(prev => prev.includes(city.id) ? prev.filter(x => x !== city.id) : [...prev, city.id])}
+                        >
+                          {active ? '✓ ' : ''}{city.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <input
                   type="text"
                   className="input pool-search"

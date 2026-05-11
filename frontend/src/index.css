@@ -5706,3 +5706,45 @@ textarea {
   .pool-filters { flex-direction: column; }
   .pool-filters .input { width: 100%; }
 }
+
+/* مخزن - فلتر متعدد للمدن (Chips) */
+.pool-cities { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.pool-cities-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pool-cities-label { font-weight: 700; color: var(--text); }
+.pool-city-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pool-city-chip {
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+  color: var(--text, #111);
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.pool-city-chip:hover { border-color: var(--primary, #3b82f6); }
+.pool-city-chip[data-active="true"] {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+  border-color: var(--primary, #3b82f6);
+}
+.pool-city-chip.all[data-active="true"] {
+  background: #10b981;
+  border-color: #10b981;
+}
+.pool-city-clear {
+  background: transparent;
+  border: 1px dashed var(--danger, #ef4444);
+  color: var(--danger, #ef4444);
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.pool-city-clear:hover { background: rgba(239,68,68,0.08); }
+[data-theme="dark"] .pool-city-chip { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); color: #e5e7eb; }
+[data-theme="dark"] .pool-city-chip[data-active="true"] { background: var(--primary, #3b82f6); color: #fff; }
