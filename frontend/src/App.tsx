@@ -4133,6 +4133,7 @@ function App() {
                             <th>الجوال</th>
                             <th>Username</th>
                             <th>IP</th>
+                            <th>ملاحظات</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -4146,6 +4147,7 @@ function App() {
                                 <td>{c.phone || '-'}</td>
                                 <td>{c.userName || '-'}</td>
                                 <td>{c.ipNumber || '-'}</td>
+                                <td className="pool-notes-cell">{c.notes ? c.notes : <span className="muted">—</span>}</td>
                               </tr>
                             );
                           })}

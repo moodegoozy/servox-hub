@@ -5748,3 +5748,13 @@ textarea {
 .pool-city-clear:hover { background: rgba(239,68,68,0.08); }
 [data-theme="dark"] .pool-city-chip { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); color: #e5e7eb; }
 [data-theme="dark"] .pool-city-chip[data-active="true"] { background: var(--primary, #3b82f6); color: #fff; }
+
+/* خلية الملاحظات في نافذة المخزن */
+.pool-notes-cell {
+  max-width: 240px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  color: var(--text);
+}
+.pool-notes-cell .muted { color: var(--text-light, #888); }
