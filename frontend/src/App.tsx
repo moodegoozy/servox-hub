@@ -3995,6 +3995,7 @@ function App() {
             return anyDup ? 'dup' : 'used';
           };
           const stateOf = (list: Customer[] | undefined) => classify(list || []);
+          const hasSuspended = (list: Customer[] | undefined) => !!list && list.some(c => !!c.isSuspended);
           const userStates = users.map(u => stateOf(userMap.get(u)));
           const ipStates = ips.map(ip => stateOf(ipMap.get(ip)));
           const freeU = userStates.filter(s => s === 'free').length;
@@ -4006,7 +4007,6 @@ function App() {
           const dupI = ipStates.filter(s => s === 'dup').length;
           const suspI = ips.filter(ip => { const l = ipMap.get(ip); return stateOf(l) === 'suspended' || hasSuspended(l); }).length;
           const toggleFilter = (f: 'free' | 'used' | 'dup' | 'suspended') => setPoolFilter(prev => prev === f ? 'all' : f);
-          const hasSuspended = (list: Customer[] | undefined) => !!list && list.some(c => !!c.isSuspended);
           const passFilter = (s: 'free' | 'used' | 'dup' | 'suspended', list?: Customer[]) => {
             if (poolFilter === 'all') return true;
             if (poolFilter === 'suspended') return s === 'suspended' || hasSuspended(list);
