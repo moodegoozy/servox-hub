@@ -5814,3 +5814,575 @@ textarea {
   border-radius: 999px;
   padding: 1px 4px;
 }
+
+/* ==========================================================================
+   نظام الأبراج — Towers
+   ========================================================================== */
+.towers-section {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Hero */
+.towers-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 32px;
+  background: linear-gradient(135deg, #0f172a 0%, #14304a 55%, #0e7490 130%);
+  border-radius: 20px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.towers-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -15%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.18) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.towers-hero-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 1;
+}
+
+.towers-hero-icon {
+  font-size: 34px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.towers-hero-title {
+  color: #f0f9ff;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.towers-hero-subtitle {
+  color: #a5c9d8;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+.towers-hero-actions {
+  z-index: 1;
+}
+
+.towers-add-btn {
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+}
+
+.towers-add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.5);
+}
+
+/* Stats */
+.towers-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.towers-stat-card {
+  padding: 18px 20px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.towers-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.towers-stat-card.active {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+}
+
+.towers-stat-total {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #bfdbfe;
+}
+.towers-stat-working {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #a7f3d0;
+}
+.towers-stat-down {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: #fecaca;
+}
+.towers-stat-cancelled {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-color: #e2e8f0;
+}
+
+.towers-stat-icon {
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.towers-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.towers-stat-label {
+  font-size: 13px;
+  color: var(--text-light);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Add / Edit form */
+.towers-form-wrapper {
+  animation: cardSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 24px;
+}
+
+.towers-form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.towers-form-layout {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+  align-items: flex-start;
+}
+
+.towers-form-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+/* Image uploader */
+.tower-image-uploader {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tower-image-drop {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  background: var(--input-bg, #fafbfc);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+}
+
+.tower-image-drop:hover {
+  border-color: #06b6d4;
+  background: rgba(6, 182, 212, 0.05);
+}
+
+.tower-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-light);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 12px;
+}
+
+.tower-image-placeholder-icon {
+  font-size: 38px;
+  opacity: 0.7;
+}
+
+.tower-image-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tower-image-remove {
+  padding: 8px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.tower-image-remove:hover { filter: brightness(0.95); }
+
+/* Textareas inside towers forms */
+.cards-field textarea,
+.towers-section textarea,
+.tower-edit-modal textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--input-bg, #fafbfc);
+  resize: vertical;
+  min-height: 76px;
+  transition: all 0.2s;
+}
+
+.cards-field textarea:focus,
+.towers-section textarea:focus,
+.tower-edit-modal textarea:focus {
+  outline: none;
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.12);
+}
+
+/* Toolbar */
+.towers-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.towers-search {
+  flex: 1;
+  min-width: 220px;
+  margin-bottom: 0;
+}
+
+/* Grid */
+.towers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 18px;
+}
+
+.tower-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.tower-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.tower-card.status-working { border-top: 4px solid #10b981; }
+.tower-card.status-not-working { border-top: 4px solid #ef4444; }
+.tower-card.status-cancelled { border-top: 4px solid #94a3b8; }
+
+.tower-card-image {
+  position: relative;
+  height: 180px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tower-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tower-card-noimage {
+  font-size: 54px;
+  opacity: 0.55;
+  filter: grayscale(0.2);
+}
+
+.tower-status-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.tower-status-badge.working { background: rgba(16, 185, 129, 0.92); }
+.tower-status-badge.not-working { background: rgba(239, 68, 68, 0.92); }
+.tower-status-badge.cancelled { background: rgba(100, 116, 139, 0.92); }
+
+.tower-card-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.tower-card-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+}
+
+.tower-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.tower-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+
+.tower-meta-label {
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+.tower-meta-value {
+  color: var(--text);
+  font-weight: 700;
+  text-align: left;
+  word-break: break-word;
+}
+
+.tower-meta-value.ltr {
+  direction: ltr;
+  font-family: 'Courier New', monospace;
+}
+
+.tower-card-info {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-light);
+  background: var(--bg-flat, #f8fafc);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.tower-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.tower-action-status,
+.tower-action-edit {
+  flex: 1;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.2s, transform 0.15s;
+}
+
+.tower-action-status {
+  background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%);
+  color: #fff;
+}
+
+.tower-action-edit {
+  background: var(--primary-glow);
+  color: var(--primary);
+}
+
+.tower-action-status:hover,
+.tower-action-edit:hover { transform: translateY(-1px); filter: brightness(1.05); }
+
+.tower-action-delete {
+  width: 40px;
+  border: none;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  font-size: 15px;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.tower-action-delete:hover { filter: brightness(0.95); }
+
+/* Edit modal */
+.tower-edit-modal {
+  max-width: 520px;
+  width: 92%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.tower-edit-modal .tower-image-uploader {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.tower-edit-modal .tower-image-drop {
+  aspect-ratio: 16 / 9;
+}
+
+/* Image lightbox */
+.tower-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(2, 6, 23, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: cardSlideDown 0.2s ease;
+}
+
+.tower-lightbox-img {
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  object-fit: contain;
+}
+
+.tower-lightbox-close {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tower-lightbox-close:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* --- Dark theme --- */
+[data-theme="dark"] .towers-stat-card {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] .towers-stat-total { border-color: rgba(59, 130, 246, 0.35) !important; }
+[data-theme="dark"] .towers-stat-working { border-color: rgba(16, 185, 129, 0.35) !important; }
+[data-theme="dark"] .towers-stat-down { border-color: rgba(239, 68, 68, 0.35) !important; }
+[data-theme="dark"] .towers-stat-cancelled { border-color: rgba(148, 163, 184, 0.3) !important; }
+[data-theme="dark"] .towers-stat-icon { background: rgba(15, 23, 42, 0.6); }
+
+[data-theme="dark"] .towers-form {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(6, 182, 212, 0.2) !important;
+}
+
+[data-theme="dark"] .tower-image-drop {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+[data-theme="dark"] .cards-field textarea,
+[data-theme="dark"] .towers-section textarea,
+[data-theme="dark"] .tower-edit-modal textarea {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(6, 182, 212, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .tower-card {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .tower-card-info {
+  background: rgba(15, 23, 42, 0.6) !important;
+}
+
+[data-theme="dark"] .tower-action-edit {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--primary-light);
+}
+
+/* Responsive */
+@media (max-width: 720px) {
+  .towers-hero { flex-direction: column; gap: 16px; text-align: center; }
+  .towers-stats { grid-template-columns: repeat(2, 1fr); }
+  .towers-form-layout { flex-direction: column; }
+  .tower-image-uploader { width: 100%; }
+}

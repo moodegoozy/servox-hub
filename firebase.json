@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "meta-yen-487714-j8",
     "public": "frontend/dist",
     "ignore": [
       "firebase.json",

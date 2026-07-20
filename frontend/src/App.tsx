@@ -70,7 +70,27 @@ type Card = {
   note?: string;
 };
 
+type TowerStatus = 'working' | 'not-working' | 'cancelled';
+
+type Tower = {
+  id: string;
+  deviceName: string;
+  ipNumber?: string;
+  cityId: string;
+  towerNumber?: string;
+  status: TowerStatus;
+  info?: string;
+  image?: string; // صورة البرج كـ data URL مضغوطة
+  createdAt?: string;
+};
+
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+const TOWER_STATUS: Record<TowerStatus, { label: string; icon: string; cls: string }> = {
+  'working': { label: 'يعمل', icon: '🟢', cls: 'working' },
+  'not-working': { label: 'لا يعمل', icon: '🔴', cls: 'not-working' },
+  'cancelled': { label: 'ملغي', icon: '⚫', cls: 'cancelled' },
+};
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -102,7 +122,7 @@ function App() {
   const [site, setSite] = useState('');
   const [notes, setNotes] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db' | 'pool'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db' | 'pool' | 'towers'>('dashboard');
   // مخزن اليوزرات والـ IP
   const [poolCityIds, setPoolCityIds] = useState<string[]>([]);
   const [poolSearch, setPoolSearch] = useState('');
@@ -258,6 +278,27 @@ function App() {
   const [reportMonth, setReportMonth] = useState(0); // 0 = الكل
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportPackage, setReportPackage] = useState(''); // '' = الكل
+  // نظام الأبراج
+  const [towers, setTowers] = useState<Tower[]>([]);
+  const [showAddTowerForm, setShowAddTowerForm] = useState(false);
+  const [towerDeviceName, setTowerDeviceName] = useState('');
+  const [towerIpNumber, setTowerIpNumber] = useState('');
+  const [towerCityId, setTowerCityId] = useState('');
+  const [towerNumber, setTowerNumber] = useState('');
+  const [towerStatus, setTowerStatus] = useState<TowerStatus>('working');
+  const [towerInfo, setTowerInfo] = useState('');
+  const [towerImage, setTowerImage] = useState('');
+  const [towerImageLoading, setTowerImageLoading] = useState(false);
+  const [towerSearch, setTowerSearch] = useState('');
+  const [towerFilterCityId, setTowerFilterCityId] = useState<string | null>(null);
+  const [towerStatusFilter, setTowerStatusFilter] = useState<'all' | TowerStatus>('all');
+  const [editingTower, setEditingTower] = useState<Tower | null>(null);
+  const [showEditTowerModal, setShowEditTowerModal] = useState(false);
+  const [editTowerImageLoading, setEditTowerImageLoading] = useState(false);
+  const [towerDeleteConfirm, setTowerDeleteConfirm] = useState<Tower | null>(null);
+  const [towerDeletePassword, setTowerDeletePassword] = useState('');
+  const [towerDeleteLoading, setTowerDeleteLoading] = useState(false);
+  const [towerImagePreview, setTowerImagePreview] = useState<string | null>(null);
   const selectedCity = useMemo(
     () => cities.find((city) => city.id === selectedCityId) ?? null,
     [cities, selectedCityId]
@@ -888,6 +929,165 @@ function App() {
     } finally { setCardDeleteLoading(false); }
   };
 
+  // === نظام الأبراج ===
+  // ضغط الصورة وتحويلها إلى data URL بحجم مناسب للتخزين في Firestore
+  const compressImage = (file: File, maxDim = 1000, quality = 0.72): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width >= height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('canvas context unavailable')); return; }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('image load failed'));
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => reject(new Error('file read failed'));
+      reader.readAsDataURL(file);
+    });
+
+  const handleTowerImageFile = async (file: File | undefined, forEdit = false) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setToastMessage('يجب اختيار ملف صورة'); return; }
+    try {
+      if (forEdit) setEditTowerImageLoading(true); else setTowerImageLoading(true);
+      const dataUrl = await compressImage(file);
+      if (forEdit) {
+        setEditingTower(prev => (prev ? { ...prev, image: dataUrl } : prev));
+      } else {
+        setTowerImage(dataUrl);
+      }
+    } catch {
+      setToastMessage('خطأ في معالجة الصورة');
+    } finally {
+      if (forEdit) setEditTowerImageLoading(false); else setTowerImageLoading(false);
+    }
+  };
+
+  const resetTowerForm = () => {
+    setTowerDeviceName('');
+    setTowerIpNumber('');
+    setTowerCityId('');
+    setTowerNumber('');
+    setTowerStatus('working');
+    setTowerInfo('');
+    setTowerImage('');
+  };
+
+  const addTower = async () => {
+    if (!towerDeviceName.trim()) { setToastMessage('أدخل اسم الجهاز'); return; }
+    if (!towerCityId) { setToastMessage('اختر المدينة'); return; }
+    try {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      const towerData: Record<string, unknown> = {
+        deviceName: towerDeviceName.trim(),
+        cityId: towerCityId,
+        status: towerStatus,
+        createdAt: todayISO(),
+      };
+      if (towerIpNumber.trim()) towerData.ipNumber = towerIpNumber.trim();
+      if (towerNumber.trim()) towerData.towerNumber = towerNumber.trim();
+      if (towerInfo.trim()) towerData.info = towerInfo.trim();
+      if (towerImage) towerData.image = towerImage;
+
+      await setDoc(doc(db, 'towers', id), towerData);
+      resetTowerForm();
+      setShowAddTowerForm(false);
+      setToastMessage(`تم إضافة البرج: ${towerData.deviceName}`);
+    } catch (error) {
+      setToastMessage('خطأ في إضافة البرج');
+      console.error(error);
+    }
+  };
+
+  // بناء بيانات البرج للحفظ (بدون المفتاح id ودون الحقول الفارغة)
+  const buildTowerDoc = (tower: Tower): Record<string, unknown> => {
+    const data: Record<string, unknown> = {
+      deviceName: tower.deviceName.trim(),
+      cityId: tower.cityId,
+      status: tower.status,
+    };
+    if (tower.ipNumber && tower.ipNumber.trim()) data.ipNumber = tower.ipNumber.trim();
+    if (tower.towerNumber && tower.towerNumber.trim()) data.towerNumber = tower.towerNumber.trim();
+    if (tower.info && tower.info.trim()) data.info = tower.info.trim();
+    if (tower.image) data.image = tower.image;
+    if (tower.createdAt) data.createdAt = tower.createdAt;
+    return data;
+  };
+
+  // تغيير حالة الجهاز يدوياً (يعمل → لا يعمل → ملغي → ...)
+  const cycleTowerStatus = async (tower: Tower) => {
+    const order: TowerStatus[] = ['working', 'not-working', 'cancelled'];
+    const next = order[(order.indexOf(tower.status) + 1) % order.length];
+    try {
+      await setDoc(doc(db, 'towers', tower.id), { ...buildTowerDoc(tower), status: next });
+      setToastMessage(`حالة ${tower.deviceName}: ${TOWER_STATUS[next].label}`);
+    } catch (error) {
+      setToastMessage('خطأ في تغيير الحالة');
+      console.error(error);
+    }
+  };
+
+  const openEditTower = (tower: Tower) => {
+    setEditingTower({ ...tower });
+    setShowEditTowerModal(true);
+  };
+
+  const saveEditedTower = async () => {
+    if (!editingTower) return;
+    if (!editingTower.deviceName.trim()) { setToastMessage('أدخل اسم الجهاز'); return; }
+    if (!editingTower.cityId) { setToastMessage('اختر المدينة'); return; }
+    try {
+      await setDoc(doc(db, 'towers', editingTower.id), buildTowerDoc(editingTower));
+      setToastMessage(`تم تعديل البرج: ${editingTower.deviceName.trim()}`);
+      setShowEditTowerModal(false);
+      setEditingTower(null);
+    } catch (error) {
+      setToastMessage('خطأ في تعديل البرج');
+      console.error(error);
+    }
+  };
+
+  const confirmDeleteTower = async () => {
+    if (!towerDeleteConfirm || !towerDeletePassword.trim()) { setToastMessage('أدخل كلمة المرور'); return; }
+    setTowerDeleteLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+      const credential = EmailAuthProvider.credential(user.email, towerDeletePassword);
+      await reauthenticateWithCredential(user, credential);
+      await deleteDoc(doc(db, 'towers', towerDeleteConfirm.id));
+      setToastMessage(`تم حذف البرج: ${towerDeleteConfirm.deviceName}`);
+      setTowerDeleteConfirm(null);
+      setTowerDeletePassword('');
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setToastMessage('كلمة المرور غير صحيحة');
+      } else {
+        setToastMessage('خطأ في التحقق');
+        console.error(error);
+      }
+    } finally {
+      setTowerDeleteLoading(false);
+    }
+  };
+
   // دالة طباعة تقرير البطاقات PDF مع فلاتر
   const printCardsReportPdf = async () => {
     const html2pdf = (await import('html2pdf.js')).default;
@@ -1288,12 +1488,19 @@ function App() {
       setCards(cardsData);
     });
 
+    // Listen to towers collection
+    const unsubscribeTowers = onSnapshot(collection(db, 'towers'), (snapshot) => {
+      const towersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tower));
+      setTowers(towersData);
+    });
+
     return () => {
       unsubscribeCities();
       unsubscribeCustomers();
       unsubscribeExpenses();
       unsubscribeIncomes();
       unsubscribeCards();
+      unsubscribeTowers();
     };
   }, [isAuthenticated]);
 
@@ -2141,7 +2348,7 @@ function App() {
           <input 
             type="text"
             placeholder={
-              activeTab === 'expenses'
+              activeTab === 'expenses' || activeTab === 'towers'
                 ? 'البحث غير متاح في هذا التبويب'
                 : activeTab === 'discounts'
                 ? 'ابحث في العملاء بالخصم...'
@@ -2154,7 +2361,7 @@ function App() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
-            disabled={activeTab === 'expenses'}
+            disabled={activeTab === 'expenses' || activeTab === 'towers'}
           />
           {searchQuery && searchResults.length > 0 && (
             <div className="search-results">
@@ -2194,6 +2401,7 @@ function App() {
         <button className={`tab-btn ${activeTab === 'discounts' ? 'active' : ''}`} onClick={() => setActiveTab('discounts')}>الخصومات</button>
         <button className={`tab-btn ${activeTab === 'suspended' ? 'active' : ''}`} onClick={() => setActiveTab('suspended')}>إيقاف مؤقت</button>
         <button className={`tab-btn ${activeTab === 'pool' ? 'active' : ''}`} onClick={() => setActiveTab('pool')}>user number &amp; ip number</button>
+        <button className={`tab-btn ${activeTab === 'towers' ? 'active' : ''}`} onClick={() => setActiveTab('towers')}>الأبراج</button>
       </div>
 
       {loading ? (
@@ -4294,6 +4502,203 @@ function App() {
           </div>
         )}
 
+        {activeTab === 'towers' && (() => {
+          let list = towerFilterCityId ? towers.filter(t => t.cityId === towerFilterCityId) : towers;
+          if (towerStatusFilter !== 'all') list = list.filter(t => t.status === towerStatusFilter);
+          if (towerSearch.trim()) {
+            const q = towerSearch.trim().toLowerCase();
+            list = list.filter(t =>
+              t.deviceName.toLowerCase().includes(q) ||
+              (t.ipNumber && t.ipNumber.toLowerCase().includes(q)) ||
+              (t.towerNumber && t.towerNumber.toLowerCase().includes(q))
+            );
+          }
+          const sorted = [...list].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
+          const total = towers.length;
+          const workingCount = towers.filter(t => t.status === 'working').length;
+          const notWorkingCount = towers.filter(t => t.status === 'not-working').length;
+          const cancelledCount = towers.filter(t => t.status === 'cancelled').length;
+
+          return (
+          <div className="section towers-section">
+            {/* Hero */}
+            <div className="towers-hero">
+              <div className="towers-hero-content">
+                <div className="towers-hero-icon">📡</div>
+                <div>
+                  <h2 className="towers-hero-title">إدارة الأبراج</h2>
+                  <p className="towers-hero-subtitle">متابعة أجهزة الأبراج وحالتها في جميع المدن</p>
+                </div>
+              </div>
+              <div className="towers-hero-actions">
+                <button className="towers-add-btn" onClick={() => setShowAddTowerForm(v => !v)}>
+                  {showAddTowerForm ? '✕ إغلاق' : '+ إضافة برج'}
+                </button>
+              </div>
+            </div>
+
+            {/* Stats — clickable filters */}
+            <div className="towers-stats">
+              <div className={`towers-stat-card towers-stat-total ${towerStatusFilter === 'all' ? 'active' : ''}`} onClick={() => setTowerStatusFilter('all')}>
+                <div className="towers-stat-icon">📡</div>
+                <div className="towers-stat-info">
+                  <div className="towers-stat-value">{total}</div>
+                  <div className="towers-stat-label">إجمالي الأبراج</div>
+                </div>
+              </div>
+              <div className={`towers-stat-card towers-stat-working ${towerStatusFilter === 'working' ? 'active' : ''}`} onClick={() => setTowerStatusFilter(towerStatusFilter === 'working' ? 'all' : 'working')}>
+                <div className="towers-stat-icon">🟢</div>
+                <div className="towers-stat-info">
+                  <div className="towers-stat-value">{workingCount}</div>
+                  <div className="towers-stat-label">يعمل</div>
+                </div>
+              </div>
+              <div className={`towers-stat-card towers-stat-down ${towerStatusFilter === 'not-working' ? 'active' : ''}`} onClick={() => setTowerStatusFilter(towerStatusFilter === 'not-working' ? 'all' : 'not-working')}>
+                <div className="towers-stat-icon">🔴</div>
+                <div className="towers-stat-info">
+                  <div className="towers-stat-value">{notWorkingCount}</div>
+                  <div className="towers-stat-label">لا يعمل</div>
+                </div>
+              </div>
+              <div className={`towers-stat-card towers-stat-cancelled ${towerStatusFilter === 'cancelled' ? 'active' : ''}`} onClick={() => setTowerStatusFilter(towerStatusFilter === 'cancelled' ? 'all' : 'cancelled')}>
+                <div className="towers-stat-icon">⚫</div>
+                <div className="towers-stat-info">
+                  <div className="towers-stat-value">{cancelledCount}</div>
+                  <div className="towers-stat-label">ملغي</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Add Tower Form */}
+            {showAddTowerForm && (
+              <div className="towers-form-wrapper">
+                <div className="towers-form">
+                  <div className="towers-form-layout">
+                    <div className="tower-image-uploader">
+                      <label className="tower-image-drop">
+                        {towerImage ? (
+                          <img src={towerImage} className="tower-image-preview-img" alt="صورة البرج" />
+                        ) : (
+                          <div className="tower-image-placeholder">
+                            <span className="tower-image-placeholder-icon">🖼️</span>
+                            <span>{towerImageLoading ? 'جارٍ المعالجة...' : 'اضغط لاختيار صورة البرج'}</span>
+                          </div>
+                        )}
+                        <input type="file" accept="image/*" hidden onChange={(e) => handleTowerImageFile(e.target.files?.[0])} />
+                      </label>
+                      {towerImage && <button type="button" className="tower-image-remove" onClick={() => setTowerImage('')}>✕ إزالة الصورة</button>}
+                    </div>
+                    <div className="towers-form-grid">
+                      <div className="cards-field">
+                        <label>اسم الجهاز</label>
+                        <input type="text" value={towerDeviceName} onChange={(e) => setTowerDeviceName(e.target.value)} placeholder="مثال: راوتر البرج الرئيسي" />
+                      </div>
+                      <div className="cards-field">
+                        <label>IP NUMBER</label>
+                        <input type="text" dir="ltr" value={towerIpNumber} onChange={(e) => setTowerIpNumber(e.target.value)} placeholder="192.168.1.1" />
+                      </div>
+                      <div className="cards-field">
+                        <label>المدينة</label>
+                        <select value={towerCityId} onChange={(e) => setTowerCityId(e.target.value)}>
+                          <option value="">-- اختر المدينة --</option>
+                          {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="cards-field">
+                        <label>رقم البرج</label>
+                        <input type="text" value={towerNumber} onChange={(e) => setTowerNumber(e.target.value)} placeholder="مثال: T-12" />
+                      </div>
+                      <div className="cards-field">
+                        <label>حالة الجهاز</label>
+                        <select value={towerStatus} onChange={(e) => setTowerStatus(e.target.value as TowerStatus)}>
+                          <option value="working">يعمل</option>
+                          <option value="not-working">لا يعمل</option>
+                          <option value="cancelled">ملغي</option>
+                        </select>
+                      </div>
+                      <div className="cards-field cards-field-wide">
+                        <label>معلومات الجهاز <span style={{ opacity: 0.5 }}>(اختياري)</span></label>
+                        <textarea value={towerInfo} onChange={(e) => setTowerInfo(e.target.value)} placeholder="تفاصيل إضافية عن الجهاز أو البرج..." rows={3} />
+                      </div>
+                    </div>
+                  </div>
+                  <button className="cards-submit-btn" onClick={addTower}>📡 إضافة البرج</button>
+                </div>
+              </div>
+            )}
+
+            {/* Toolbar: search + city filter */}
+            <div className="towers-toolbar">
+              <div className="cards-search-wrapper towers-search">
+                <span className="cards-search-icon">🔍</span>
+                <input
+                  type="text"
+                  className="cards-search-input"
+                  placeholder="ابحث باسم الجهاز أو IP أو رقم البرج..."
+                  value={towerSearch}
+                  onChange={(e) => setTowerSearch(e.target.value)}
+                />
+                {towerSearch && <button className="cards-search-clear" onClick={() => setTowerSearch('')}>✕</button>}
+              </div>
+              <select className="cards-select" value={towerFilterCityId ?? ''} onChange={(e) => setTowerFilterCityId(e.target.value || null)}>
+                <option value="">كل المدن</option>
+                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
+            {/* Grid */}
+            {sorted.length === 0 ? (
+              <div className="cards-empty">
+                <div className="cards-empty-icon">📡</div>
+                <p>{towers.length === 0 ? 'لا توجد أبراج بعد — اضغط "إضافة برج" للبدء' : 'لا توجد أبراج مطابقة للفلتر'}</p>
+              </div>
+            ) : (
+              <div className="towers-grid">
+                {sorted.map(tower => {
+                  const city = cities.find(c => c.id === tower.cityId);
+                  const st = TOWER_STATUS[tower.status];
+                  return (
+                    <div key={tower.id} className={`tower-card status-${st.cls}`}>
+                      <div className="tower-card-image" onClick={() => tower.image && setTowerImagePreview(tower.image)} style={{ cursor: tower.image ? 'zoom-in' : 'default' }}>
+                        {tower.image ? (
+                          <img src={tower.image} alt={tower.deviceName} />
+                        ) : (
+                          <div className="tower-card-noimage">📡</div>
+                        )}
+                        <span className={`tower-status-badge ${st.cls}`}>{st.icon} {st.label}</span>
+                      </div>
+                      <div className="tower-card-body">
+                        <h3 className="tower-card-name">{tower.deviceName}</h3>
+                        <div className="tower-card-meta">
+                          <div className="tower-meta-row">
+                            <span className="tower-meta-label">المدينة</span>
+                            <span className="tower-meta-value">{city?.name || '—'}</span>
+                          </div>
+                          <div className="tower-meta-row">
+                            <span className="tower-meta-label">رقم البرج</span>
+                            <span className="tower-meta-value">{tower.towerNumber || '—'}</span>
+                          </div>
+                          <div className="tower-meta-row">
+                            <span className="tower-meta-label">IP</span>
+                            <span className="tower-meta-value ltr">{tower.ipNumber || '—'}</span>
+                          </div>
+                        </div>
+                        {tower.info && <p className="tower-card-info">{tower.info}</p>}
+                        <div className="tower-card-actions">
+                          <button className="tower-action-status" onClick={() => cycleTowerStatus(tower)} title="تغيير حالة الجهاز">🔄 الحالة</button>
+                          <button className="tower-action-edit" onClick={() => openEditTower(tower)}>✏️ تعديل</button>
+                          <button className="tower-action-delete" onClick={() => setTowerDeleteConfirm(tower)} title="حذف">🗑️</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          );
+        })()}
+
       {/* Transfer Customer Modal */}
       {transferModal && transferCustomer && (
         <div className="modal-overlay" onClick={() => setTransferModal(false)}>
@@ -4374,6 +4779,110 @@ function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Edit Tower Modal */}
+      {showEditTowerModal && editingTower && (
+        <div className="modal-overlay" onClick={() => { setShowEditTowerModal(false); setEditingTower(null); }}>
+          <div className="modal tower-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>تعديل معلومات الجهاز</h3>
+              <button onClick={() => { setShowEditTowerModal(false); setEditingTower(null); }} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <div className="tower-image-uploader">
+                <label className="tower-image-drop">
+                  {editingTower.image ? (
+                    <img src={editingTower.image} className="tower-image-preview-img" alt="صورة البرج" />
+                  ) : (
+                    <div className="tower-image-placeholder">
+                      <span className="tower-image-placeholder-icon">🖼️</span>
+                      <span>{editTowerImageLoading ? 'جارٍ المعالجة...' : 'اضغط لاختيار صورة البرج'}</span>
+                    </div>
+                  )}
+                  <input type="file" accept="image/*" hidden onChange={(e) => handleTowerImageFile(e.target.files?.[0], true)} />
+                </label>
+                {editingTower.image && <button type="button" className="tower-image-remove" onClick={() => setEditingTower(prev => (prev ? { ...prev, image: '' } : prev))}>✕ إزالة الصورة</button>}
+              </div>
+              <div className="edit-field">
+                <label>اسم الجهاز</label>
+                <input type="text" className="input" value={editingTower.deviceName} onChange={(e) => setEditingTower({ ...editingTower, deviceName: e.target.value })} />
+              </div>
+              <div className="edit-field">
+                <label>IP NUMBER</label>
+                <input type="text" dir="ltr" className="input" value={editingTower.ipNumber || ''} onChange={(e) => setEditingTower({ ...editingTower, ipNumber: e.target.value })} />
+              </div>
+              <div className="edit-field">
+                <label>المدينة</label>
+                <select className="input" value={editingTower.cityId} onChange={(e) => setEditingTower({ ...editingTower, cityId: e.target.value })}>
+                  <option value="">-- اختر المدينة --</option>
+                  {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="edit-field">
+                <label>رقم البرج</label>
+                <input type="text" className="input" value={editingTower.towerNumber || ''} onChange={(e) => setEditingTower({ ...editingTower, towerNumber: e.target.value })} />
+              </div>
+              <div className="edit-field">
+                <label>حالة الجهاز</label>
+                <select className="input" value={editingTower.status} onChange={(e) => setEditingTower({ ...editingTower, status: e.target.value as TowerStatus })}>
+                  <option value="working">يعمل</option>
+                  <option value="not-working">لا يعمل</option>
+                  <option value="cancelled">ملغي</option>
+                </select>
+              </div>
+              <div className="edit-field">
+                <label>معلومات الجهاز</label>
+                <textarea className="input" rows={3} value={editingTower.info || ''} onChange={(e) => setEditingTower({ ...editingTower, info: e.target.value })} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => { setShowEditTowerModal(false); setEditingTower(null); }} className="btn secondary">إلغاء</button>
+              <button onClick={saveEditedTower} className="btn primary">حفظ التعديلات</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tower Delete Confirm Modal */}
+      {towerDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setTowerDeleteConfirm(null)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>حذف برج</h3>
+              <button onClick={() => setTowerDeleteConfirm(null)} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text">
+                هل تريد حذف البرج <strong>{towerDeleteConfirm.deviceName}</strong>؟
+              </p>
+              <div className="edit-field">
+                <label>أدخل كلمة المرور للتأكيد</label>
+                <input
+                  type="password"
+                  value={towerDeletePassword}
+                  onChange={(e) => setTowerDeletePassword(e.target.value)}
+                  placeholder="كلمة المرور"
+                  onKeyDown={(e) => e.key === 'Enter' && confirmDeleteTower()}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setTowerDeleteConfirm(null)} className="btn secondary">إلغاء</button>
+              <button onClick={confirmDeleteTower} className="btn danger" disabled={towerDeleteLoading}>
+                {towerDeleteLoading ? 'جاري الحذف...' : 'حذف'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tower Image Preview Lightbox */}
+      {towerImagePreview && (
+        <div className="tower-lightbox" onClick={() => setTowerImagePreview(null)}>
+          <button className="tower-lightbox-close" onClick={() => setTowerImagePreview(null)}>×</button>
+          <img src={towerImagePreview} alt="صورة البرج" className="tower-lightbox-img" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
