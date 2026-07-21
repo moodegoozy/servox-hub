@@ -6298,6 +6298,79 @@ textarea {
 
 .tower-user-info { display: flex; flex-direction: column; gap: 2px; }
 
+/* قائمة انتظار تعيين البرج */
+.tower-queue {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  background: var(--bg-flat, #f8fafc);
+}
+
+.tower-queue-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tower-queue-title { font-size: 15px; font-weight: 800; color: var(--text); }
+
+.tower-queue-count {
+  min-width: 24px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--warning, #f59e0b);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.tower-queue-empty { margin: 0; font-size: 13px; color: var(--text-light); opacity: 0.75; }
+
+.tower-queue-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.tower-queue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.tower-queue-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tower-queue-info strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tower-queue-select {
+  flex-shrink: 0;
+  max-width: 150px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--primary-glow, #c7d2fe);
+  background: var(--primary-glow, #eef2ff);
+  color: var(--primary);
+  font-family: 'Cairo', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .tower-queue { background: rgba(15, 23, 42, 0.5); border-color: var(--border); }
+[data-theme="dark"] .tower-queue-row { background: rgba(15, 23, 42, 0.7); border-color: var(--border); }
+[data-theme="dark"] .tower-queue-select {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: var(--primary-light);
+}
+
 .tower-card-actions {
   display: flex;
   gap: 8px;

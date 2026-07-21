@@ -302,7 +302,6 @@ function App() {
   const [towerDeleteLoading, setTowerDeleteLoading] = useState(false);
   const [towerImagePreview, setTowerImagePreview] = useState<string | null>(null);
   const [towerCustomersModal, setTowerCustomersModal] = useState<Tower | null>(null); // نافذة مستخدمي البرج
-  const [towerCustomerToAdd, setTowerCustomerToAdd] = useState(''); // العميل المختار لإضافته للبرج
   const [pendingEditTower, setPendingEditTower] = useState<Tower | null>(null); // البرج المنتظر تأكيد كلمة المرور لتعديله
   const [towerEditPasswordModal, setTowerEditPasswordModal] = useState(false);
   const [towerEditPassword, setTowerEditPassword] = useState('');
@@ -4796,7 +4795,7 @@ function App() {
                           </div>
                         </div>
                         {tower.info && <p className="tower-card-info">{tower.info}</p>}
-                        <button className="tower-users-btn" onClick={() => { setTowerCustomersModal(tower); setTowerCustomerToAdd(''); }}>
+                        <button className="tower-users-btn" onClick={() => setTowerCustomersModal(tower)}>
                           👥 المستخدمون <span className="tower-users-count">{linkedCount}</span>
                         </button>
                         <div className="tower-card-actions">
@@ -4810,6 +4809,49 @@ function App() {
                 })}
               </div>
             )}
+
+            {/* قائمة انتظار تعيين البرج — المستخدمون غير المعيّنين لأي برج */}
+            {towers.length > 0 && (() => {
+              const unassigned = customers
+                .filter(c => !c.towerId)
+                .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+              const towerOptions = [...towers].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
+              return (
+                <div className="tower-queue">
+                  <div className="tower-queue-header">
+                    <span className="tower-queue-title">🕒 مستخدمون بانتظار تعيين برج</span>
+                    <span className="tower-queue-count">{unassigned.length}</span>
+                  </div>
+                  {unassigned.length === 0 ? (
+                    <p className="tower-queue-empty">كل المستخدمين معيّنون لأبراج ✅</p>
+                  ) : (
+                    <div className="tower-queue-list">
+                      {unassigned.map(c => {
+                        const cityName = cities.find(ct => ct.id === c.cityId)?.name;
+                        return (
+                          <div key={c.id} className="tower-queue-row">
+                            <div className="tower-queue-info">
+                              <strong>{c.name}</strong>
+                              <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
+                            </div>
+                            <select
+                              className="tower-queue-select"
+                              value=""
+                              onChange={(e) => { if (e.target.value) setCustomerTower(c, e.target.value); }}
+                            >
+                              <option value="">— عيّن لبرج —</option>
+                              {towerOptions.map(t => (
+                                <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           );
         })()}
@@ -4828,27 +4870,7 @@ function App() {
                 <button onClick={() => setTowerCustomersModal(null)} className="modal-close">×</button>
               </div>
               <div className="modal-body">
-                <div className="tower-users-add">
-                  <select className="input" value={towerCustomerToAdd} onChange={(e) => setTowerCustomerToAdd(e.target.value)}>
-                    <option value="">— اختر عميلاً لإضافته —</option>
-                    {candidates.map(c => {
-                      const cityName = cities.find(ct => ct.id === c.cityId)?.name;
-                      return <option key={c.id} value={c.id}>{c.name}{c.userName ? ` • ${c.userName}` : ''}{cityName ? ` — ${cityName}` : ''}</option>;
-                    })}
-                  </select>
-                  <button
-                    className="btn primary"
-                    disabled={!towerCustomerToAdd}
-                    onClick={async () => {
-                      const c = customers.find(x => x.id === towerCustomerToAdd);
-                      if (c) { await setCustomerTower(c, tower.id); setTowerCustomerToAdd(''); }
-                    }}
-                  >
-                    ➕ إضافة
-                  </button>
-                </div>
-                {candidates.length === 0 && <p className="small" style={{ opacity: 0.6 }}>كل العملاء مرتبطون بهذا البرج بالفعل</p>}
-
+                <p className="small" style={{ opacity: 0.7, marginBottom: 12 }}>لإضافة مستخدم لهذا البرج، عيّنه من «قائمة انتظار تعيين البرج» في أسفل صفحة الأبراج.</p>
                 <div className="section-title-small">المستخدمون المرتبطون ({linked.length})</div>
                 {linked.length === 0 ? (
                   <p className="small" style={{ opacity: 0.6 }}>لا يوجد مستخدمون مرتبطون بهذا البرج بعد</p>
