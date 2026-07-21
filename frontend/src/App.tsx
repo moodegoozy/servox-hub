@@ -37,6 +37,7 @@ type Customer = {
   isSuspended?: boolean;
   suspendedDate?: string;
   isExempt?: boolean;
+  towerId?: string; // البرج التابع له العميل
 };
 
 type Expense = {
@@ -121,6 +122,7 @@ function App() {
   const [lap, setLap] = useState('');
   const [site, setSite] = useState('');
   const [notes, setNotes] = useState('');
+  const [customerTowerId, setCustomerTowerId] = useState(''); // البرج المختار في فورم إضافة العميل
   const [toastMessage, setToastMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db' | 'pool' | 'towers'>('dashboard');
   // مخزن اليوزرات والـ IP
@@ -299,6 +301,8 @@ function App() {
   const [towerDeletePassword, setTowerDeletePassword] = useState('');
   const [towerDeleteLoading, setTowerDeleteLoading] = useState(false);
   const [towerImagePreview, setTowerImagePreview] = useState<string | null>(null);
+  const [towerCustomersModal, setTowerCustomersModal] = useState<Tower | null>(null); // نافذة مستخدمي البرج
+  const [towerCustomerToAdd, setTowerCustomerToAdd] = useState(''); // العميل المختار لإضافته للبرج
   const selectedCity = useMemo(
     () => cities.find((city) => city.id === selectedCityId) ?? null,
     [cities, selectedCityId]
@@ -1633,6 +1637,7 @@ function App() {
     if (lap) customerData.lap = lap;
     if (site) customerData.site = site;
     if (notes) customerData.notes = notes;
+    if (customerTowerId) customerData.towerId = customerTowerId;
 
     try {
       await setDoc(doc(db, 'customers', customerId), customerData);
@@ -1651,6 +1656,7 @@ function App() {
       setLap('');
       setSite('');
       setNotes('');
+      setCustomerTowerId('');
     } catch (error) {
       setToastMessage('خطأ في إضافة العميل');
       console.error(error);
@@ -2006,6 +2012,24 @@ function App() {
       setEditingCustomer(null);
     } catch (error) {
       setToastMessage('خطأ في تحديث البيانات');
+      console.error(error);
+    }
+  };
+
+  // ربط عميل ببرج أو فك ربطه (towerId فارغ = فك الربط) — يعيد حفظ مستند العميل كاملاً
+  const setCustomerTower = async (customer: Customer, towerId: string) => {
+    try {
+      const { id, ...rest } = customer;
+      const cleanData: Record<string, unknown> = {};
+      Object.entries(rest).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') cleanData[key] = val;
+      });
+      if (towerId) cleanData.towerId = towerId;
+      else delete cleanData.towerId;
+      await setDoc(doc(db, 'customers', id), cleanData);
+      setToastMessage(towerId ? `تم ربط ${customer.name} بالبرج` : `تم فك ربط ${customer.name}`);
+    } catch (error) {
+      setToastMessage('خطأ في تحديث العميل');
       console.error(error);
     }
   };
@@ -2457,7 +2481,13 @@ function App() {
                   </div>
                   <input type="text" placeholder="IP Number (الراوتر الأساسي)" value={ipNumber} onChange={(e) => setIpNumber(e.target.value)} />
                   <input type="text" placeholder="User Name (الراوتر الأساسي)" value={userName} onChange={(e) => setUserName(e.target.value)} />
-                  
+                  <select className="customer-tower-select" value={customerTowerId} onChange={(e) => setCustomerTowerId(e.target.value)}>
+                    <option value="">📡 البرج التابع له (اختياري)</option>
+                    {[...towers].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar')).map(t => (
+                      <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
+                    ))}
+                  </select>
+
                   <div className="router-section">
                     <label>عدد الراوترات الإضافية:</label>
                     <input 
@@ -2534,6 +2564,10 @@ function App() {
                         </div>
                       </div>
                       <div className="small">{customer.userName || '-'} • {customer.phone || '-'} • {customer.ipNumber || '-'}</div>
+                      {customer.towerId && (() => {
+                        const t = towers.find(tw => tw.id === customer.towerId);
+                        return t ? <div className="small customer-tower-line">📡 {t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</div> : null;
+                      })()}
                       <div className="small">المتبقي: {remaining} ﷼</div>
                       <div className="actions">
                         <button onClick={() => generateSetupInvoicePDF(customer)} className="btn warning">تأسيس</button>
@@ -3346,6 +3380,15 @@ function App() {
                 <div className="edit-field">
                   <label>User Name</label>
                   <input type="text" value={editingCustomer.userName || ''} onChange={(e) => handleEditCustomer('userName', e.target.value)} />
+                </div>
+                <div className="edit-field">
+                  <label>البرج التابع له</label>
+                  <select value={editingCustomer.towerId || ''} onChange={(e) => handleEditCustomer('towerId', e.target.value)}>
+                    <option value="">— بدون برج —</option>
+                    {[...towers].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar')).map(t => (
+                      <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="router-section">
                   <div className="edit-field">
@@ -4657,6 +4700,7 @@ function App() {
                 {sorted.map(tower => {
                   const city = cities.find(c => c.id === tower.cityId);
                   const st = TOWER_STATUS[tower.status];
+                  const linkedCount = customers.filter(c => c.towerId === tower.id).length;
                   return (
                     <div key={tower.id} className={`tower-card status-${st.cls}`}>
                       <div className="tower-card-image" onClick={() => tower.image && setTowerImagePreview(tower.image)} style={{ cursor: tower.image ? 'zoom-in' : 'default' }}>
@@ -4684,6 +4728,9 @@ function App() {
                           </div>
                         </div>
                         {tower.info && <p className="tower-card-info">{tower.info}</p>}
+                        <button className="tower-users-btn" onClick={() => { setTowerCustomersModal(tower); setTowerCustomerToAdd(''); }}>
+                          👥 المستخدمون <span className="tower-users-count">{linkedCount}</span>
+                        </button>
                         <div className="tower-card-actions">
                           <button className="tower-action-status" onClick={() => cycleTowerStatus(tower)} title="تغيير حالة الجهاز">🔄 الحالة</button>
                           <button className="tower-action-edit" onClick={() => openEditTower(tower)}>✏️ تعديل</button>
@@ -4698,6 +4745,72 @@ function App() {
           </div>
           );
         })()}
+
+      {/* Tower Customers Modal — مستخدمو البرج */}
+      {towerCustomersModal && (() => {
+        const tower = towers.find(t => t.id === towerCustomersModal.id) || towerCustomersModal;
+        const linked = customers
+          .filter(c => c.towerId === tower.id)
+          .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        const candidates = customers
+          .filter(c => c.towerId !== tower.id)
+          .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        return (
+          <div className="modal-overlay" onClick={() => setTowerCustomersModal(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>مستخدمو البرج: {tower.deviceName}</h3>
+                <button onClick={() => setTowerCustomersModal(null)} className="modal-close">×</button>
+              </div>
+              <div className="modal-body">
+                <div className="tower-users-add">
+                  <select className="input" value={towerCustomerToAdd} onChange={(e) => setTowerCustomerToAdd(e.target.value)}>
+                    <option value="">— اختر عميلاً لإضافته —</option>
+                    {candidates.map(c => {
+                      const cityName = cities.find(ct => ct.id === c.cityId)?.name;
+                      return <option key={c.id} value={c.id}>{c.name}{c.userName ? ` • ${c.userName}` : ''}{cityName ? ` — ${cityName}` : ''}</option>;
+                    })}
+                  </select>
+                  <button
+                    className="btn primary"
+                    disabled={!towerCustomerToAdd}
+                    onClick={async () => {
+                      const c = customers.find(x => x.id === towerCustomerToAdd);
+                      if (c) { await setCustomerTower(c, tower.id); setTowerCustomerToAdd(''); }
+                    }}
+                  >
+                    ➕ إضافة
+                  </button>
+                </div>
+                {candidates.length === 0 && <p className="small" style={{ opacity: 0.6 }}>كل العملاء مرتبطون بهذا البرج بالفعل</p>}
+
+                <div className="section-title-small">المستخدمون المرتبطون ({linked.length})</div>
+                {linked.length === 0 ? (
+                  <p className="small" style={{ opacity: 0.6 }}>لا يوجد مستخدمون مرتبطون بهذا البرج بعد</p>
+                ) : (
+                  <div className="tower-users-list">
+                    {linked.map(c => {
+                      const cityName = cities.find(ct => ct.id === c.cityId)?.name;
+                      return (
+                        <div key={c.id} className="tower-user-row">
+                          <div className="tower-user-info">
+                            <strong>{c.name}</strong>
+                            <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
+                          </div>
+                          <button className="btn danger btn-sm" onClick={() => setCustomerTower(c, '')}>إزالة</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setTowerCustomersModal(null)} className="btn secondary">إغلاق</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Transfer Customer Modal */}
       {transferModal && transferCustomer && (

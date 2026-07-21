@@ -6234,6 +6234,70 @@ textarea {
   padding: 10px 12px;
 }
 
+/* زر مستخدمي البرج */
+.tower-users-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--primary-glow, #e0e7ff);
+  border-radius: 10px;
+  background: var(--primary-glow, #eef2ff);
+  color: var(--primary);
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.2s, transform 0.15s;
+}
+
+.tower-users-btn:hover { transform: translateY(-1px); filter: brightness(1.03); }
+
+.tower-users-count {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* سطر البرج على بطاقة العميل */
+.customer-tower-line { color: var(--primary); font-weight: 700; }
+
+/* محدد البرج في فورم إضافة العميل */
+.customer-tower-select { width: 100%; }
+
+/* نافذة مستخدمي البرج */
+.tower-users-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tower-users-add .input { flex: 1; }
+
+.tower-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tower-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-flat, #f8fafc);
+}
+
+.tower-user-info { display: flex; flex-direction: column; gap: 2px; }
+
 .tower-card-actions {
   display: flex;
   gap: 8px;
@@ -6377,6 +6441,16 @@ textarea {
 [data-theme="dark"] .tower-action-edit {
   background: rgba(99, 102, 241, 0.2);
   color: var(--primary-light);
+}
+
+[data-theme="dark"] .tower-users-btn {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: var(--primary-light);
+}
+
+[data-theme="dark"] .tower-user-row {
+  background: rgba(15, 23, 42, 0.6);
 }
 
 /* Responsive */
