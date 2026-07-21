@@ -300,6 +300,10 @@ function App() {
   const [towerDeleteLoading, setTowerDeleteLoading] = useState(false);
   const [towerImagePreview, setTowerImagePreview] = useState<string | null>(null);
   const [towerCustomersModal, setTowerCustomersModal] = useState<Tower | null>(null); // نافذة مستخدمي البرج
+  const [pendingEditTower, setPendingEditTower] = useState<Tower | null>(null); // البرج المنتظر تأكيد كلمة المرور لتعديله
+  const [towerEditPasswordModal, setTowerEditPasswordModal] = useState(false);
+  const [towerEditPassword, setTowerEditPassword] = useState('');
+  const [towerEditLoading, setTowerEditLoading] = useState(false);
   const selectedCity = useMemo(
     () => cities.find((city) => city.id === selectedCityId) ?? null,
     [cities, selectedCityId]
@@ -1046,8 +1050,38 @@ function App() {
   };
 
   const openEditTower = (tower: Tower) => {
-    setEditingTower({ ...tower });
-    setShowEditTowerModal(true);
+    setPendingEditTower(tower);
+    setTowerEditPassword('');
+    setTowerEditPasswordModal(true);
+  };
+
+  // التحقق من كلمة مرور الحساب قبل فتح نافذة تعديل البرج
+  const confirmTowerEditPassword = async () => {
+    if (!pendingEditTower || !towerEditPassword.trim()) {
+      setToastMessage('أدخل كلمة المرور');
+      return;
+    }
+    setTowerEditLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+      const credential = EmailAuthProvider.credential(user.email, towerEditPassword);
+      await reauthenticateWithCredential(user, credential);
+      setEditingTower({ ...pendingEditTower });
+      setShowEditTowerModal(true);
+      setTowerEditPasswordModal(false);
+      setPendingEditTower(null);
+      setTowerEditPassword('');
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setToastMessage('كلمة المرور غير صحيحة');
+      } else {
+        setToastMessage('خطأ في التحقق');
+        console.error(error);
+      }
+    } finally {
+      setTowerEditLoading(false);
+    }
   };
 
   const saveEditedTower = async () => {
@@ -3188,6 +3222,40 @@ function App() {
               <button onClick={() => { setEditPasswordModal(false); setPendingEditCustomer(null); setEditPassword(''); }} className="btn secondary">إلغاء</button>
               <button onClick={confirmEditPassword} className="btn primary" disabled={editLoading}>
                 {editLoading ? 'جاري التحقق...' : 'متابعة'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tower Edit Password Modal — كلمة مرور تعديل البرج */}
+      {towerEditPasswordModal && pendingEditTower && (
+        <div className="modal-overlay" onClick={() => { setTowerEditPasswordModal(false); setPendingEditTower(null); setTowerEditPassword(''); }}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>تأكيد تعديل البرج</h3>
+              <button onClick={() => { setTowerEditPasswordModal(false); setPendingEditTower(null); setTowerEditPassword(''); }} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text" style={{ marginBottom: '20px' }}>
+                لتعديل البرج <strong>{pendingEditTower.deviceName}</strong>، أدخل كلمة المرور
+              </p>
+              <div className="edit-field">
+                <label>كلمة المرور</label>
+                <input
+                  type="password"
+                  placeholder="كلمة المرور"
+                  value={towerEditPassword}
+                  onChange={(e) => setTowerEditPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && confirmTowerEditPassword()}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => { setTowerEditPasswordModal(false); setPendingEditTower(null); setTowerEditPassword(''); }} className="btn secondary">إلغاء</button>
+              <button onClick={confirmTowerEditPassword} className="btn primary" disabled={towerEditLoading}>
+                {towerEditLoading ? 'جاري التحقق...' : 'متابعة'}
               </button>
             </div>
           </div>
