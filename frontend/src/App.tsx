@@ -306,6 +306,9 @@ function App() {
   const [towerEditPasswordModal, setTowerEditPasswordModal] = useState(false);
   const [towerEditPassword, setTowerEditPassword] = useState('');
   const [towerEditLoading, setTowerEditLoading] = useState(false);
+  const [pendingUnlinkCustomer, setPendingUnlinkCustomer] = useState<Customer | null>(null); // العميل المنتظر تأكيد كلمة المرور لإزالته من البرج
+  const [unlinkPassword, setUnlinkPassword] = useState('');
+  const [unlinkLoading, setUnlinkLoading] = useState(false);
   const selectedCity = useMemo(
     () => cities.find((city) => city.id === selectedCityId) ?? null,
     [cities, selectedCityId]
@@ -1083,6 +1086,33 @@ function App() {
       }
     } finally {
       setTowerEditLoading(false);
+    }
+  };
+
+  // التحقق من كلمة مرور الحساب قبل إزالة عميل من البرج
+  const confirmUnlinkCustomer = async () => {
+    if (!pendingUnlinkCustomer || !unlinkPassword.trim()) {
+      setToastMessage('أدخل كلمة المرور');
+      return;
+    }
+    setUnlinkLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+      const credential = EmailAuthProvider.credential(user.email, unlinkPassword);
+      await reauthenticateWithCredential(user, credential);
+      await setCustomerTower(pendingUnlinkCustomer, '');
+      setPendingUnlinkCustomer(null);
+      setUnlinkPassword('');
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setToastMessage('كلمة المرور غير صحيحة');
+      } else {
+        setToastMessage('خطأ في التحقق');
+        console.error(error);
+      }
+    } finally {
+      setUnlinkLoading(false);
     }
   };
 
@@ -4890,7 +4920,7 @@ function App() {
                             <strong>{c.name}</strong>
                             <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
                           </div>
-                          <button className="btn danger btn-sm" onClick={() => setCustomerTower(c, '')}>إزالة</button>
+                          <button className="btn danger btn-sm" onClick={() => { setPendingUnlinkCustomer(c); setUnlinkPassword(''); }}>إزالة</button>
                         </div>
                       );
                     })}
@@ -4904,6 +4934,40 @@ function App() {
           </div>
         );
       })()}
+
+      {/* Unlink Customer Password Modal — كلمة مرور إزالة المستخدم من البرج */}
+      {pendingUnlinkCustomer && (
+        <div className="modal-overlay" onClick={() => { setPendingUnlinkCustomer(null); setUnlinkPassword(''); }}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>تأكيد إزالة المستخدم</h3>
+              <button onClick={() => { setPendingUnlinkCustomer(null); setUnlinkPassword(''); }} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text" style={{ marginBottom: '20px' }}>
+                لإزالة <strong>{pendingUnlinkCustomer.name}</strong> من البرج، أدخل كلمة المرور
+              </p>
+              <div className="edit-field">
+                <label>كلمة المرور</label>
+                <input
+                  type="password"
+                  placeholder="كلمة المرور"
+                  value={unlinkPassword}
+                  onChange={(e) => setUnlinkPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && confirmUnlinkCustomer()}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => { setPendingUnlinkCustomer(null); setUnlinkPassword(''); }} className="btn secondary">إلغاء</button>
+              <button onClick={confirmUnlinkCustomer} className="btn danger" disabled={unlinkLoading}>
+                {unlinkLoading ? 'جاري التحقق...' : 'إزالة'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Transfer Customer Modal */}
       {transferModal && transferCustomer && (

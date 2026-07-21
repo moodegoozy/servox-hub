@@ -1224,7 +1224,396 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' |
 
 ---
 
-## الخطوة 12 — التحقق والبناء والنشر
+## الخطوة 12 — ربط العملاء بالأبراج (users ↔ towers)
+
+هذه الخطوة تربط كل عميل ببرج، وتتيح تعيين/إزالة العملاء من الأبراج. **كل التعيين يدوي — لا يوجد ربط أوتوماتيكي حسب المدينة.**
+
+### 12.1 — حقل `towerId` على نوع `Customer`
+**نقطة الربط:** في `type Customer = { ... }`، ابحث عن `isExempt?: boolean;` وأضِف بعده:
+
+```ts
+  towerId?: string; // البرج التابع له العميل
+```
+
+### 12.2 — متغيّرات الحالة (State)
+**نقطة الربط:** بعد `const [notes, setNotes] = useState('');` أضِف:
+
+```ts
+  const [customerTowerId, setCustomerTowerId] = useState(''); // البرج المختار في فورم إضافة العميل
+```
+
+وبعد آخر متغيّر حالة للأبراج (مثلاً `const [towerImagePreview, ...]`) أضِف:
+
+```ts
+  const [towerCustomersModal, setTowerCustomersModal] = useState<Tower | null>(null); // نافذة مستخدمي البرج
+  const [pendingEditTower, setPendingEditTower] = useState<Tower | null>(null); // البرج المنتظر تأكيد كلمة المرور لتعديله
+  const [towerEditPasswordModal, setTowerEditPasswordModal] = useState(false);
+  const [towerEditPassword, setTowerEditPassword] = useState('');
+  const [towerEditLoading, setTowerEditLoading] = useState(false);
+  const [pendingUnlinkCustomer, setPendingUnlinkCustomer] = useState<Customer | null>(null); // العميل المنتظر تأكيد كلمة المرور لإزالته من البرج
+  const [unlinkPassword, setUnlinkPassword] = useState('');
+  const [unlinkLoading, setUnlinkLoading] = useState(false);
+```
+
+### 12.3 — حفظ `towerId` عند إضافة عميل
+**نقطة الربط:** داخل `handleAddCustomer`، ابحث عن `if (notes) customerData.notes = notes;` وأضِف بعده:
+
+```ts
+    if (customerTowerId) customerData.towerId = customerTowerId;
+```
+
+وفي كتلة تصفير الحقول (بعد `setNotes('');`) أضِف:
+
+```ts
+      setCustomerTowerId('');
+```
+
+### 12.4 — الدوال المساعدة (ربط/فك الربط + كلمات المرور)
+**نقطة الربط:** بعد نهاية دالة `saveEditedCustomer` مباشرةً، أضِف:
+
+```ts
+  // ربط عميل ببرج أو فك ربطه (towerId فارغ = فك الربط) — يعيد حفظ مستند العميل كاملاً
+  const setCustomerTower = async (customer: Customer, towerId: string) => {
+    try {
+      const { id, ...rest } = customer;
+      const cleanData: Record<string, unknown> = {};
+      Object.entries(rest).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') cleanData[key] = val;
+      });
+      if (towerId) cleanData.towerId = towerId;
+      else delete cleanData.towerId;
+      await setDoc(doc(db, 'customers', id), cleanData);
+      setToastMessage(towerId ? `تم ربط ${customer.name} بالبرج` : `تم فك ربط ${customer.name}`);
+    } catch (error) {
+      setToastMessage('خطأ في تحديث العميل');
+      console.error(error);
+    }
+  };
+```
+
+**نقطة الربط:** استبدل دالة `openEditTower` الحالية بالكامل بالتالي (تعديل البرج يصبح محمياً بكلمة مرور الحساب)، وأضِف بعدها دالتَي التحقق:
+
+```ts
+  const openEditTower = (tower: Tower) => {
+    setPendingEditTower(tower);
+    setTowerEditPassword('');
+    setTowerEditPasswordModal(true);
+  };
+
+  // التحقق من كلمة مرور الحساب قبل فتح نافذة تعديل البرج
+  const confirmTowerEditPassword = async () => {
+    if (!pendingEditTower || !towerEditPassword.trim()) {
+      setToastMessage('أدخل كلمة المرور');
+      return;
+    }
+    setTowerEditLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+      const credential = EmailAuthProvider.credential(user.email, towerEditPassword);
+      await reauthenticateWithCredential(user, credential);
+      setEditingTower({ ...pendingEditTower });
+      setShowEditTowerModal(true);
+      setTowerEditPasswordModal(false);
+      setPendingEditTower(null);
+      setTowerEditPassword('');
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setToastMessage('كلمة المرور غير صحيحة');
+      } else {
+        setToastMessage('خطأ في التحقق');
+        console.error(error);
+      }
+    } finally {
+      setTowerEditLoading(false);
+    }
+  };
+
+  // التحقق من كلمة مرور الحساب قبل إزالة عميل من البرج
+  const confirmUnlinkCustomer = async () => {
+    if (!pendingUnlinkCustomer || !unlinkPassword.trim()) {
+      setToastMessage('أدخل كلمة المرور');
+      return;
+    }
+    setUnlinkLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+      const credential = EmailAuthProvider.credential(user.email, unlinkPassword);
+      await reauthenticateWithCredential(user, credential);
+      await setCustomerTower(pendingUnlinkCustomer, '');
+      setPendingUnlinkCustomer(null);
+      setUnlinkPassword('');
+    } catch (error: any) {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setToastMessage('كلمة المرور غير صحيحة');
+      } else {
+        setToastMessage('خطأ في التحقق');
+        console.error(error);
+      }
+    } finally {
+      setUnlinkLoading(false);
+    }
+  };
+```
+
+> ملاحظة: النسخة الأصلية كانت `openEditTower` تفتح نافذة التعديل مباشرة؛ الآن أصبحت تفتح نافذة كلمة المرور أولاً.
+
+### 12.5 — محدّد البرج في فورم إضافة العميل
+**نقطة الربط:** في فورم إضافة العميل، بعد حقل `User Name (الراوتر الأساسي)` وقبل `<div className="router-section">`، أضِف (يعرض **كل الأبراج في كل المدن**):
+
+```tsx
+                  <select className="customer-tower-select" value={customerTowerId} onChange={(e) => setCustomerTowerId(e.target.value)}>
+                    <option value="">📡 البرج التابع له (اختياري)</option>
+                    {[...towers].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar')).map(t => (
+                      <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
+                    ))}
+                  </select>
+```
+
+### 12.6 — عرض اسم البرج على بطاقة العميل
+**نقطة الربط:** في بطاقة العميل، بعد السطر `<div className="small">{customer.userName ...` وقبل سطر «المتبقي»، أضِف:
+
+```tsx
+                      {customer.towerId && (() => {
+                        const t = towers.find(tw => tw.id === customer.towerId);
+                        return t ? <div className="small customer-tower-line">📡 {t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</div> : null;
+                      })()}
+```
+
+### 12.7 — محدّد البرج في نافذة تعديل العميل
+**نقطة الربط:** في نافذة تعديل العميل، بعد حقل `User Name` (كتلة `edit-field`) وقبل `<div className="router-section">`، أضِف:
+
+```tsx
+                <div className="edit-field">
+                  <label>البرج التابع له</label>
+                  <select value={editingCustomer.towerId || ''} onChange={(e) => handleEditCustomer('towerId', e.target.value)}>
+                    <option value="">— بدون برج —</option>
+                    {[...towers].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar')).map(t => (
+                      <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+```
+
+### 12.8 — زر «المستخدمون» وعدّادهم على بطاقة البرج
+**نقطة الربط:** داخل `sorted.map(tower => {`، بعد `const st = TOWER_STATUS[tower.status];` أضِف:
+
+```ts
+                  const linkedCount = customers.filter(c => c.towerId === tower.id).length;
+```
+
+وفي جسم البطاقة، بعد `{tower.info && <p className="tower-card-info">{tower.info}</p>}` وقبل `<div className="tower-card-actions">`، أضِف:
+
+```tsx
+                        <button className="tower-users-btn" onClick={() => setTowerCustomersModal(tower)}>
+                          👥 المستخدمون <span className="tower-users-count">{linkedCount}</span>
+                        </button>
+```
+
+### 12.9 — قائمة انتظار تعيين البرج (داخل قسم تبويب الأبراج)
+**نقطة الربط:** داخل `<div className="section towers-section">`، بعد كتلة الشبكة (Grid) `{sorted.length === 0 ? (...) : (...)}` وقبل `</div>` الذي يغلق القسم، أضِف. القائمة تعرض العملاء **بلا برج**، مفلترة بمدينة الفلتر، وخيارات التعيين محصورة بأبراج **مدينة العميل**:
+
+```tsx
+            {/* قائمة انتظار تعيين البرج — المستخدمون غير المعيّنين لأي برج */}
+            {towers.length > 0 && (() => {
+              const unassigned = customers
+                .filter(c => !c.towerId && (!towerFilterCityId || c.cityId === towerFilterCityId))
+                .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+              return (
+                <div className="tower-queue">
+                  <div className="tower-queue-header">
+                    <span className="tower-queue-title">🕒 مستخدمون بانتظار تعيين برج</span>
+                    <span className="tower-queue-count">{unassigned.length}</span>
+                  </div>
+                  {unassigned.length === 0 ? (
+                    <p className="tower-queue-empty">{towerFilterCityId ? 'لا يوجد مستخدمون بانتظار التعيين في هذه المدينة ✅' : 'كل المستخدمين معيّنون لأبراج ✅'}</p>
+                  ) : (
+                    <div className="tower-queue-list">
+                      {unassigned.map(c => {
+                        const cityName = cities.find(ct => ct.id === c.cityId)?.name;
+                        const cityTowers = towers
+                          .filter(t => t.cityId === c.cityId)
+                          .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
+                        return (
+                          <div key={c.id} className="tower-queue-row">
+                            <div className="tower-queue-info">
+                              <strong>{c.name}</strong>
+                              <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
+                            </div>
+                            {cityTowers.length === 0 ? (
+                              <span className="tower-queue-notower">لا أبراج في مدينته</span>
+                            ) : (
+                              <select
+                                className="tower-queue-select"
+                                value=""
+                                onChange={(e) => { if (e.target.value) setCustomerTower(c, e.target.value); }}
+                              >
+                                <option value="">— عيّن لبرج —</option>
+                                {cityTowers.map(t => (
+                                  <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+```
+
+### 12.10 — النوافذ (Modals): مستخدمو البرج + كلمات المرور
+**نقطة الربط:** قبل `{/* Transfer Customer Modal */}` (أو قبل أي نافذة قرب نهاية الـ JSX)، أضِف النوافذ الثلاث:
+
+```tsx
+      {/* Tower Customers Modal — مستخدمو البرج (عرض/إزالة فقط) */}
+      {towerCustomersModal && (() => {
+        const tower = towers.find(t => t.id === towerCustomersModal.id) || towerCustomersModal;
+        const linked = customers
+          .filter(c => c.towerId === tower.id)
+          .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        return (
+          <div className="modal-overlay" onClick={() => setTowerCustomersModal(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>مستخدمو البرج: {tower.deviceName}</h3>
+                <button onClick={() => setTowerCustomersModal(null)} className="modal-close">×</button>
+              </div>
+              <div className="modal-body">
+                <p className="small" style={{ opacity: 0.7, marginBottom: 12 }}>لإضافة مستخدم لهذا البرج، عيّنه من «قائمة انتظار تعيين البرج» في أسفل صفحة الأبراج.</p>
+                <div className="section-title-small">المستخدمون المرتبطون ({linked.length})</div>
+                {linked.length === 0 ? (
+                  <p className="small" style={{ opacity: 0.6 }}>لا يوجد مستخدمون مرتبطون بهذا البرج بعد</p>
+                ) : (
+                  <div className="tower-users-list">
+                    {linked.map(c => {
+                      const cityName = cities.find(ct => ct.id === c.cityId)?.name;
+                      return (
+                        <div key={c.id} className="tower-user-row">
+                          <div className="tower-user-info">
+                            <strong>{c.name}</strong>
+                            <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
+                          </div>
+                          <button className="btn danger btn-sm" onClick={() => { setPendingUnlinkCustomer(c); setUnlinkPassword(''); }}>إزالة</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setTowerCustomersModal(null)} className="btn secondary">إغلاق</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Unlink Customer Password Modal — كلمة مرور إزالة المستخدم من البرج */}
+      {pendingUnlinkCustomer && (
+        <div className="modal-overlay" onClick={() => { setPendingUnlinkCustomer(null); setUnlinkPassword(''); }}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>تأكيد إزالة المستخدم</h3>
+              <button onClick={() => { setPendingUnlinkCustomer(null); setUnlinkPassword(''); }} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text" style={{ marginBottom: '20px' }}>
+                لإزالة <strong>{pendingUnlinkCustomer.name}</strong> من البرج، أدخل كلمة المرور
+              </p>
+              <div className="edit-field">
+                <label>كلمة المرور</label>
+                <input type="password" placeholder="كلمة المرور" value={unlinkPassword} onChange={(e) => setUnlinkPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmUnlinkCustomer()} autoFocus />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => { setPendingUnlinkCustomer(null); setUnlinkPassword(''); }} className="btn secondary">إلغاء</button>
+              <button onClick={confirmUnlinkCustomer} className="btn danger" disabled={unlinkLoading}>{unlinkLoading ? 'جاري التحقق...' : 'إزالة'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tower Edit Password Modal — كلمة مرور تعديل البرج */}
+      {towerEditPasswordModal && pendingEditTower && (
+        <div className="modal-overlay" onClick={() => { setTowerEditPasswordModal(false); setPendingEditTower(null); setTowerEditPassword(''); }}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>تأكيد تعديل البرج</h3>
+              <button onClick={() => { setTowerEditPasswordModal(false); setPendingEditTower(null); setTowerEditPassword(''); }} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text" style={{ marginBottom: '20px' }}>
+                لتعديل البرج <strong>{pendingEditTower.deviceName}</strong>، أدخل كلمة المرور
+              </p>
+              <div className="edit-field">
+                <label>كلمة المرور</label>
+                <input type="password" placeholder="كلمة المرور" value={towerEditPassword} onChange={(e) => setTowerEditPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmTowerEditPassword()} autoFocus />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => { setTowerEditPasswordModal(false); setPendingEditTower(null); setTowerEditPassword(''); }} className="btn secondary">إلغاء</button>
+              <button onClick={confirmTowerEditPassword} className="btn primary" disabled={towerEditLoading}>{towerEditLoading ? 'جاري التحقق...' : 'متابعة'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+```
+
+### 12.11 — التنسيقات (CSS)
+**نقطة الربط:** في `frontend/src/index.css`، بعد كتلة `.tower-card-info { ... }` أضِف:
+
+```css
+/* زر مستخدمي البرج */
+.tower-users-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--primary-glow, #e0e7ff); border-radius: 10px;
+  background: var(--primary-glow, #eef2ff); color: var(--primary);
+  font-family: 'Cairo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: filter 0.2s, transform 0.15s;
+}
+.tower-users-btn:hover { transform: translateY(-1px); filter: brightness(1.03); }
+.tower-users-count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 12px; font-weight: 800; }
+
+/* سطر البرج على بطاقة العميل + محدد البرج في الفورم */
+.customer-tower-line { color: var(--primary); font-weight: 700; }
+.customer-tower-select { width: 100%; }
+
+/* نافذة مستخدمي البرج */
+.tower-users-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.tower-user-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-flat, #f8fafc); }
+.tower-user-info { display: flex; flex-direction: column; gap: 2px; }
+
+/* قائمة انتظار تعيين البرج */
+.tower-queue { margin-top: 24px; padding: 18px; border: 1px solid var(--border, #e2e8f0); border-radius: 16px; background: var(--bg-flat, #f8fafc); }
+.tower-queue-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.tower-queue-title { font-size: 15px; font-weight: 800; color: var(--text); }
+.tower-queue-count { min-width: 24px; padding: 2px 9px; border-radius: 999px; background: var(--warning, #f59e0b); color: #fff; font-size: 13px; font-weight: 800; text-align: center; }
+.tower-queue-empty { margin: 0; font-size: 13px; color: var(--text-light); opacity: 0.75; }
+.tower-queue-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.tower-queue-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--bg, #fff); border: 1px solid var(--border, #e2e8f0); }
+.tower-queue-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tower-queue-info strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tower-queue-select { flex-shrink: 0; max-width: 150px; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--primary-glow, #c7d2fe); background: var(--primary-glow, #eef2ff); color: var(--primary); font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+.tower-queue-notower { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--danger-text, #b91c1c); opacity: 0.85; white-space: nowrap; }
+
+/* الوضع الداكن */
+[data-theme="dark"] .tower-users-btn { background: rgba(99, 102, 241, 0.18); border-color: rgba(99, 102, 241, 0.3); color: var(--primary-light); }
+[data-theme="dark"] .tower-user-row { background: rgba(15, 23, 42, 0.6); }
+[data-theme="dark"] .tower-queue { background: rgba(15, 23, 42, 0.5); border-color: var(--border); }
+[data-theme="dark"] .tower-queue-row { background: rgba(15, 23, 42, 0.7); border-color: var(--border); }
+[data-theme="dark"] .tower-queue-select { background: rgba(99, 102, 241, 0.18); border-color: rgba(99, 102, 241, 0.3); color: var(--primary-light); }
+```
+
+> لا حاجة لتعديل `firestore.rules` لهذه الخطوة: الميزة تكتب فقط حقل `towerId` على مستندات `customers` الموجودة (قواعدها موجودة أصلاً).
+
+---
+
+## الخطوة 13 — التحقق والبناء والنشر
 من مجلد `frontend`:
 
 ```bash
@@ -1250,7 +1639,15 @@ firebase deploy --only hosting --project <PROJECT_ID>
 ## ملخص السلوك (للتحقق النهائي)
 - تبويب "الأبراج" يظهر في شريط التبويبات.
 - زر "إضافة برج" يفتح نموذجاً فيه: صورة البرج، اسم الجهاز، IP NUMBER، المدينة (قائمة من المدن المضافة)، رقم البرج، حالة الجهاز (يعمل/لا يعمل/ملغي)، معلومات الجهاز.
-- كل برج يظهر كبطاقة مع صورته وشارة الحالة الملوّنة، وأزرار: تغيير الحالة (🔄)، تعديل (✏️)، حذف (🗑️ محمي بكلمة المرور).
+- كل برج يظهر كبطاقة مع صورته وشارة الحالة الملوّنة، وأزرار: تغيير الحالة (🔄)، تعديل (✏️ محمي بكلمة المرور)، حذف (🗑️ محمي بكلمة المرور).
 - بطاقات إحصائية علوية قابلة للنقر كفلاتر + بحث + فلتر بالمدينة + معاينة الصورة بالضغط عليها.
 - الصور تُضغط في المتصفح وتُخزَّن كـ data URL داخل مجموعة `towers` في Firestore.
+
+### ربط العملاء بالأبراج (الخطوة 12)
+- فورم إضافة العميل ونافذة تعديله يحتويان محدّد "البرج التابع له" (كل الأبراج في كل المدن).
+- بطاقة العميل تعرض اسم البرج (📡) إن كان معيّناً.
+- كل بطاقة برج فيها زر "👥 المستخدمون (عدد)" يفتح نافذة عرض المرتبطين وإزالتهم.
+- **إزالة مستخدم من البرج محمية بكلمة مرور الحساب** (إعادة مصادقة).
+- أسفل تبويب الأبراج "🕒 قائمة انتظار تعيين برج" تعرض العملاء بلا برج؛ مفلترة بمدينة الفلتر، وخيارات التعيين محصورة بأبراج مدينة العميل، وإن لم توجد أبراج في مدينته تظهر "لا أبراج في مدينته".
+- **التعيين يدوي بالكامل — لا يوجد ربط أوتوماتيكي حسب المدينة.**
 ```
