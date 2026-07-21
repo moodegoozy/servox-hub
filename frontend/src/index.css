@@ -6265,7 +6265,20 @@ textarea {
   font-weight: 800;
 }
 
+/* سطر البرج على بطاقة العميل */
+.customer-tower-line { color: var(--primary); font-weight: 700; }
+
+/* محدد البرج في فورم إضافة العميل */
+.customer-tower-select { width: 100%; }
+
 /* نافذة مستخدمي البرج */
+.tower-users-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tower-users-add .input { flex: 1; }
+
 .tower-users-list {
   display: flex;
   flex-direction: column;
