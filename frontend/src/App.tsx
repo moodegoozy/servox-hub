@@ -4815,7 +4815,6 @@ function App() {
               const unassigned = customers
                 .filter(c => !c.towerId && (!towerFilterCityId || c.cityId === towerFilterCityId))
                 .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-              const towerOptions = [...towers].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
               return (
                 <div className="tower-queue">
                   <div className="tower-queue-header">
@@ -4828,22 +4827,29 @@ function App() {
                     <div className="tower-queue-list">
                       {unassigned.map(c => {
                         const cityName = cities.find(ct => ct.id === c.cityId)?.name;
+                        const cityTowers = towers
+                          .filter(t => t.cityId === c.cityId)
+                          .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
                         return (
                           <div key={c.id} className="tower-queue-row">
                             <div className="tower-queue-info">
                               <strong>{c.name}</strong>
                               <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
                             </div>
-                            <select
-                              className="tower-queue-select"
-                              value=""
-                              onChange={(e) => { if (e.target.value) setCustomerTower(c, e.target.value); }}
-                            >
-                              <option value="">— عيّن لبرج —</option>
-                              {towerOptions.map(t => (
-                                <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
-                              ))}
-                            </select>
+                            {cityTowers.length === 0 ? (
+                              <span className="tower-queue-notower">لا أبراج في مدينته</span>
+                            ) : (
+                              <select
+                                className="tower-queue-select"
+                                value=""
+                                onChange={(e) => { if (e.target.value) setCustomerTower(c, e.target.value); }}
+                              >
+                                <option value="">— عيّن لبرج —</option>
+                                {cityTowers.map(t => (
+                                  <option key={t.id} value={t.id}>{t.deviceName}{t.towerNumber ? ` (${t.towerNumber})` : ''}</option>
+                                ))}
+                              </select>
+                            )}
                           </div>
                         );
                       })}

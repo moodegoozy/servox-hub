@@ -6363,6 +6363,15 @@ textarea {
   cursor: pointer;
 }
 
+.tower-queue-notower {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger-text, #b91c1c);
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
 [data-theme="dark"] .tower-queue { background: rgba(15, 23, 42, 0.5); border-color: var(--border); }
 [data-theme="dark"] .tower-queue-row { background: rgba(15, 23, 42, 0.7); border-color: var(--border); }
 [data-theme="dark"] .tower-queue-select {
