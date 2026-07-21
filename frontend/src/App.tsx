@@ -4813,7 +4813,7 @@ function App() {
             {/* قائمة انتظار تعيين البرج — المستخدمون غير المعيّنين لأي برج */}
             {towers.length > 0 && (() => {
               const unassigned = customers
-                .filter(c => !c.towerId)
+                .filter(c => !c.towerId && (!towerFilterCityId || c.cityId === towerFilterCityId))
                 .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
               const towerOptions = [...towers].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
               return (
@@ -4823,7 +4823,7 @@ function App() {
                     <span className="tower-queue-count">{unassigned.length}</span>
                   </div>
                   {unassigned.length === 0 ? (
-                    <p className="tower-queue-empty">كل المستخدمين معيّنون لأبراج ✅</p>
+                    <p className="tower-queue-empty">{towerFilterCityId ? 'لا يوجد مستخدمون بانتظار التعيين في هذه المدينة ✅' : 'كل المستخدمين معيّنون لأبراج ✅'}</p>
                   ) : (
                     <div className="tower-queue-list">
                       {unassigned.map(c => {
