@@ -6329,6 +6329,13 @@ textarea {
 }
 
 .tower-user-info { display: flex; flex-direction: column; gap: 2px; }
+.tower-user-info-clickable { cursor: pointer; border-radius: 8px; padding: 4px 6px; margin: -4px -6px; transition: background 0.15s; }
+.tower-user-info-clickable:hover { background: var(--primary-glow, #eef2ff); }
+.tower-user-info-hint { font-size: 12px; opacity: 0.7; }
+[data-theme="dark"] .tower-user-info-clickable:hover { background: rgba(99, 102, 241, 0.18); }
+
+/* نافذة تظهر فوق نافذة أخرى (معلومات العميل فوق نافذة البرج) */
+.modal-overlay-top { z-index: 1100; }
 
 /* قائمة انتظار تعيين البرج */
 .tower-queue {

@@ -3081,7 +3081,7 @@ function App() {
 
       {/* Customer Details Modal */}
       {showCustomerModal && selectedCustomer && (
-        <div className="modal-overlay" onClick={() => setShowCustomerModal(false)}>
+        <div className="modal-overlay modal-overlay-top" onClick={() => setShowCustomerModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>معلومات العميل</h3>
@@ -4811,7 +4811,13 @@ function App() {
             list = list.filter(t =>
               t.deviceName.toLowerCase().includes(q) ||
               (t.ipNumber && t.ipNumber.toLowerCase().includes(q)) ||
-              (t.towerNumber && t.towerNumber.toLowerCase().includes(q))
+              (t.towerNumber && t.towerNumber.toLowerCase().includes(q)) ||
+              // البحث بأسماء العملاء المرتبطين بالبرج أو الـ IP أو اسم المستخدم
+              customers.some(c => c.towerId === t.id && (
+                c.name.toLowerCase().includes(q) ||
+                (c.ipNumber && c.ipNumber.toLowerCase().includes(q)) ||
+                (c.userName && c.userName.toLowerCase().includes(q))
+              ))
             );
           }
           const sorted = [...list].sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
@@ -4935,7 +4941,7 @@ function App() {
                 <input
                   type="text"
                   className="cards-search-input"
-                  placeholder="ابحث باسم الجهاز أو IP أو رقم البرج..."
+                  placeholder="ابحث بالبرج أو باسم العميل أو IP العميل..."
                   value={towerSearch}
                   onChange={(e) => setTowerSearch(e.target.value)}
                 />
@@ -5077,8 +5083,8 @@ function App() {
                       const cityName = cities.find(ct => ct.id === c.cityId)?.name;
                       return (
                         <div key={c.id} className="tower-user-row">
-                          <div className="tower-user-info">
-                            <strong>{c.name}</strong>
+                          <div className="tower-user-info tower-user-info-clickable" onClick={() => openCustomerDetails(c)} title="عرض معلومات العميل الكاملة">
+                            <strong>{c.name} <span className="tower-user-info-hint">ℹ️</span></strong>
                             <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
                           </div>
                           <button className="btn danger btn-sm" onClick={() => { setPendingUnlinkCustomer(c); setUnlinkPassword(''); }}>إزالة</button>
