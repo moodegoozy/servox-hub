@@ -248,6 +248,13 @@ function App() {
   const [profileNewPassword, setProfileNewPassword] = useState('');
   const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
   const [profilePasswordBusy, setProfilePasswordBusy] = useState(false);
+  // إظهار/إخفاء كلمات المرور في البروفايل
+  const [showProfileEmailPw, setShowProfileEmailPw] = useState(false);
+  const [showProfileCurPw, setShowProfileCurPw] = useState(false);
+  const [showProfileNewPw, setShowProfileNewPw] = useState(false);
+  const [showProfileConfPw, setShowProfileConfPw] = useState(false);
+  const [revealedCurrentPassword, setRevealedCurrentPassword] = useState<string | null>(null); // كلمة المرور الحالية المكشوفة بالبصمة
+  const [revealBusy, setRevealBusy] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'city' | 'customer'; id: string; name: string} | null>(null);
@@ -2548,7 +2555,34 @@ function App() {
     setProfileCurrentPassword('');
     setProfileNewPassword('');
     setProfileConfirmPassword('');
+    setRevealedCurrentPassword(null);
+    setShowProfileEmailPw(false);
+    setShowProfileCurPw(false);
+    setShowProfileNewPw(false);
+    setShowProfileConfPw(false);
     setShowProfileModal(true);
+  };
+
+  const closeProfile = () => {
+    setShowProfileModal(false);
+    setRevealedCurrentPassword(null);
+  };
+
+  // عرض كلمة المرور الحالية عبر البصمة (تُفكّ من التخزين المشفّر على الجهاز)
+  const revealCurrentPassword = async () => {
+    setRevealBusy(true);
+    try {
+      const creds = await unlockBiometric();
+      if (!creds) { setToastMessage('لا توجد بصمة مسجّلة على هذا الجهاز'); return; }
+      setRevealedCurrentPassword(creds.password);
+    } catch (e: any) {
+      if (e?.name === 'NotAllowedError') setToastMessage('أُلغيت عملية البصمة');
+      else if (e?.message === 'no-prf') setToastMessage('متصفحك لا يدعم الكشف الآمن بالبصمة');
+      else setToastMessage('تعذّر عرض كلمة المرور');
+      console.error(e);
+    } finally {
+      setRevealBusy(false);
+    }
   };
 
   // حفظ اسم الحساب (displayName)
@@ -5420,11 +5454,11 @@ function App() {
 
       {/* Profile Modal — صفحة حساب المستخدم */}
       {showProfileModal && (
-        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+        <div className="modal-overlay" onClick={closeProfile}>
           <div className="modal profile-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>👤 حساب المستخدم</h3>
-              <button onClick={() => setShowProfileModal(false)} className="modal-close">×</button>
+              <button onClick={closeProfile} className="modal-close">×</button>
             </div>
             <div className="modal-body">
               <div className="profile-hero">
@@ -5453,7 +5487,10 @@ function App() {
                 <div className="section-title-small">البريد الإلكتروني</div>
                 <p className="small" style={{ opacity: 0.7, margin: '0 0 8px' }}>الحالي: <span dir="ltr">{auth.currentUser?.email}</span></p>
                 <input type="email" dir="ltr" value={profileNewEmail} onChange={(e) => setProfileNewEmail(e.target.value)} placeholder="البريد الجديد" />
-                <input type="password" value={profileEmailPassword} onChange={(e) => setProfileEmailPassword(e.target.value)} placeholder="كلمة المرور الحالية للتأكيد" />
+                <div className="password-input-wrap">
+                  <input type={showProfileEmailPw ? 'text' : 'password'} value={profileEmailPassword} onChange={(e) => setProfileEmailPassword(e.target.value)} placeholder="كلمة المرور الحالية للتأكيد" />
+                  <button type="button" className="password-eye" onClick={() => setShowProfileEmailPw(v => !v)} title={showProfileEmailPw ? 'إخفاء' : 'إظهار'} tabIndex={-1}>{showProfileEmailPw ? '🙈' : '👁️'}</button>
+                </div>
                 <button className="btn primary profile-full-btn" onClick={saveProfileEmail} disabled={profileEmailBusy}>
                   {profileEmailBusy ? 'جارٍ الإرسال...' : 'تغيير البريد'}
                 </button>
@@ -5463,9 +5500,34 @@ function App() {
               {/* كلمة المرور */}
               <div className="profile-section">
                 <div className="section-title-small">كلمة المرور</div>
-                <input type="password" value={profileCurrentPassword} onChange={(e) => setProfileCurrentPassword(e.target.value)} placeholder="كلمة المرور الحالية" />
-                <input type="password" value={profileNewPassword} onChange={(e) => setProfileNewPassword(e.target.value)} placeholder="كلمة المرور الجديدة" />
-                <input type="password" value={profileConfirmPassword} onChange={(e) => setProfileConfirmPassword(e.target.value)} placeholder="تأكيد كلمة المرور الجديدة" />
+                {/* كلمة المرور الحالية — تُعرض بالبصمة فقط (Firebase لا يخزّنها) */}
+                {bioEnabled ? (
+                  <div className="profile-reveal-row">
+                    <div className="profile-reveal-field">
+                      <span className="small" style={{ opacity: 0.7 }}>كلمة المرور الحالية</span>
+                      <span className="profile-reveal-value" dir="ltr">{revealedCurrentPassword ?? '••••••••'}</span>
+                    </div>
+                    {revealedCurrentPassword ? (
+                      <button className="btn secondary btn-sm" onClick={() => setRevealedCurrentPassword(null)}>🙈 إخفاء</button>
+                    ) : (
+                      <button className="btn secondary btn-sm" onClick={revealCurrentPassword} disabled={revealBusy}>{revealBusy ? '...' : '👆 إظهار بالبصمة'}</button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="small" style={{ opacity: 0.6, margin: '0 0 10px' }}>🔒 لعرض كلمة المرور الحالية، فعّل الدخول بالبصمة (لأسباب أمنية لا يخزّن Firebase كلمة المرور، فلا يمكن استرجاعها بدونها).</p>
+                )}
+                <div className="password-input-wrap">
+                  <input type={showProfileCurPw ? 'text' : 'password'} value={profileCurrentPassword} onChange={(e) => setProfileCurrentPassword(e.target.value)} placeholder="كلمة المرور الحالية" />
+                  <button type="button" className="password-eye" onClick={() => setShowProfileCurPw(v => !v)} title={showProfileCurPw ? 'إخفاء' : 'إظهار'} tabIndex={-1}>{showProfileCurPw ? '🙈' : '👁️'}</button>
+                </div>
+                <div className="password-input-wrap">
+                  <input type={showProfileNewPw ? 'text' : 'password'} value={profileNewPassword} onChange={(e) => setProfileNewPassword(e.target.value)} placeholder="كلمة المرور الجديدة" />
+                  <button type="button" className="password-eye" onClick={() => setShowProfileNewPw(v => !v)} title={showProfileNewPw ? 'إخفاء' : 'إظهار'} tabIndex={-1}>{showProfileNewPw ? '🙈' : '👁️'}</button>
+                </div>
+                <div className="password-input-wrap">
+                  <input type={showProfileConfPw ? 'text' : 'password'} value={profileConfirmPassword} onChange={(e) => setProfileConfirmPassword(e.target.value)} placeholder="تأكيد كلمة المرور الجديدة" />
+                  <button type="button" className="password-eye" onClick={() => setShowProfileConfPw(v => !v)} title={showProfileConfPw ? 'إخفاء' : 'إظهار'} tabIndex={-1}>{showProfileConfPw ? '🙈' : '👁️'}</button>
+                </div>
                 <button className="btn primary profile-full-btn" onClick={saveProfilePassword} disabled={profilePasswordBusy}>
                   {profilePasswordBusy ? 'جارٍ التغيير...' : 'تغيير كلمة المرور'}
                 </button>
@@ -5473,7 +5535,7 @@ function App() {
               </div>
             </div>
             <div className="modal-footer">
-              <button onClick={() => setShowProfileModal(false)} className="btn secondary">إغلاق</button>
+              <button onClick={closeProfile} className="btn secondary">إغلاق</button>
             </div>
           </div>
         </div>
