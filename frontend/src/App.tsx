@@ -2711,9 +2711,6 @@ function App() {
             {darkMode ? '🌙' : '☀️'}
           </div>
         </button>
-        <button className="profile-avatar-btn" onClick={openProfile} title="حساب المستخدم">
-          {(auth.currentUser?.displayName || auth.currentUser?.email || '؟').trim().charAt(0).toUpperCase()}
-        </button>
         <div className="search-box">
           <input 
             type="text"
@@ -2765,6 +2762,9 @@ function App() {
             <button onClick={() => { setBioSetupPassword(''); setBioSetupModal(true); }} className="btn secondary bio-toggle-btn" title="تفعيل الدخول بالبصمة على هذا الجهاز">👤 تفعيل البصمة</button>
           )
         )}
+        <button className="profile-avatar-btn" onClick={openProfile} title="حسابي — الاسم والبريد وكلمة المرور">
+          {(auth.currentUser?.displayName || auth.currentUser?.email || '؟').trim().charAt(0).toUpperCase()}
+        </button>
         <button onClick={handleLogout} className="btn secondary">تسجيل خروج</button>
       </header>
 
