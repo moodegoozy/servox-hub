@@ -1353,6 +1353,38 @@ body {
     0 6px 20px rgba(234, 88, 12, 0.3);
 }
 
+/* زر الدخول بالبصمة / Face ID */
+.bio-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 24px;
+  margin-top: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Cairo', sans-serif;
+  color: var(--primary, #6366f1);
+  background: var(--primary-glow, #eef2ff);
+  border: 1.5px solid var(--primary, #6366f1);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 0.2s, filter 0.2s;
+}
+.bio-login-btn:hover { transform: translateY(-2px); filter: brightness(1.03); }
+.bio-login-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
+.bio-login-icon { font-size: 20px; }
+
+[data-theme="dark"] .bio-login-btn {
+  color: var(--primary-light, #a5b4fc);
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* زر البصمة في الهيدر */
+.bio-toggle-btn { white-space: nowrap; }
+
 .login-btn-text {
   position: relative;
   z-index: 1;

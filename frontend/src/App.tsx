@@ -95,6 +95,89 @@ const TOWER_STATUS: Record<TowerStatus, { label: string; icon: string; cls: stri
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+// ===== الدخول بالبصمة / Face ID (WebAuthn + امتداد PRF) =====
+// البصمة تشتقّ مفتاحاً من عتاد الجهاز يُشفَّر به كلمة المرور محلياً (AES-GCM)،
+// فلا تُفكّ إلا بنجاح البصمة على هذا الجهاز نفسه. التخزين محلي فقط (localStorage).
+const BIO_KEY = 'servox_biometric';
+type BioStore = { credId: string; email: string; salt: string; iv: string; ct: string };
+
+const bufToB64 = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64ToBuf = (b64: string): ArrayBuffer => Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+
+const getBioStore = (): BioStore | null => {
+  try { const s = localStorage.getItem(BIO_KEY); return s ? (JSON.parse(s) as BioStore) : null; } catch { return null; }
+};
+const clearBioStore = () => localStorage.removeItem(BIO_KEY);
+
+// هل يدعم الجهاز/المتصفح مُصادقاً حيوياً (Face ID / Windows Hello / بصمة)؟
+const isBioSupported = async (): Promise<boolean> => {
+  try {
+    if (!window.PublicKeyCredential) return false;
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch { return false; }
+};
+
+const aesKeyFromPrf = (prf: ArrayBuffer) =>
+  crypto.subtle.importKey('raw', prf, 'AES-GCM', false, ['encrypt', 'decrypt']);
+
+// استدعاء get() للحصول على ناتج PRF (بصمة) من مُعرّف بيانات الاعتماد
+const evalPrf = async (credId: string, salt: Uint8Array): Promise<ArrayBuffer | null> => {
+  const assertion = (await navigator.credentials.get({
+    publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rpId: window.location.hostname,
+      allowCredentials: [{ type: 'public-key', id: b64ToBuf(credId) }],
+      userVerification: 'required',
+      timeout: 60000,
+      extensions: { prf: { eval: { first: salt } } } as any,
+    },
+  })) as PublicKeyCredential | null;
+  if (!assertion) return null;
+  const results = (assertion.getClientExtensionResults() as any).prf?.results?.first as ArrayBuffer | undefined;
+  return results ?? null;
+};
+
+// تسجيل بصمة جديدة على هذا الجهاز + تشفير كلمة المرور بها
+const registerBiometric = async (email: string, password: string): Promise<void> => {
+  const salt = crypto.getRandomValues(new Uint8Array(32));
+  const cred = (await navigator.credentials.create({
+    publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rp: { name: 'SERVOX', id: window.location.hostname },
+      user: { id: crypto.getRandomValues(new Uint8Array(16)), name: email, displayName: email },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+      timeout: 60000,
+      extensions: { prf: { eval: { first: salt } } } as any,
+    },
+  })) as PublicKeyCredential | null;
+  if (!cred) throw new Error('no-cred');
+  const credId = bufToB64(cred.rawId);
+
+  // بعض المتصفحات تُرجع ناتج PRF في create()، وبعضها يحتاج get() إضافياً
+  let prf = ((cred.getClientExtensionResults() as any).prf?.results?.first as ArrayBuffer | undefined) ?? null;
+  if (!prf) prf = await evalPrf(credId, salt);
+  if (!prf) throw new Error('no-prf');
+
+  const key = await aesKeyFromPrf(prf);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(password));
+
+  const store: BioStore = { credId, email, salt: bufToB64(salt.buffer), iv: bufToB64(iv.buffer), ct: bufToB64(ct) };
+  localStorage.setItem(BIO_KEY, JSON.stringify(store));
+};
+
+// فك التشفير واسترجاع بيانات الدخول عبر البصمة
+const unlockBiometric = async (): Promise<{ email: string; password: string } | null> => {
+  const store = getBioStore();
+  if (!store) return null;
+  const prf = await evalPrf(store.credId, new Uint8Array(b64ToBuf(store.salt)));
+  if (!prf) throw new Error('no-prf');
+  const key = await aesKeyFromPrf(prf);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(b64ToBuf(store.iv)) }, key, b64ToBuf(store.ct));
+  return { email: store.email, password: new TextDecoder().decode(pt) };
+};
+
 const formatDate = (value: string) => {
   const date = new Date(value);
   return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -148,6 +231,12 @@ function App() {
   const [paymentMonth, setPaymentMonth] = useState(new Date().getMonth() + 1);
   const [paymentYear, setPaymentYear] = useState(new Date().getFullYear());
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('datahub-theme') === 'dark');
+  // الدخول بالبصمة / Face ID
+  const [bioAvailable, setBioAvailable] = useState(false); // الجهاز يدعم مُصادقاً حيوياً
+  const [bioEnabled, setBioEnabled] = useState(() => getBioStore() !== null); // بصمة مسجّلة على هذا الجهاز
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioSetupModal, setBioSetupModal] = useState(false);
+  const [bioSetupPassword, setBioSetupPassword] = useState('');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'city' | 'customer'; id: string; name: string} | null>(null);
@@ -1509,6 +1598,11 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  // فحص دعم البصمة على هذا الجهاز
+  useEffect(() => {
+    isBioSupported().then(setBioAvailable);
+  }, []);
+
   // Load data from Firestore on mount
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -2381,6 +2475,60 @@ function App() {
     }
   };
 
+  // تسجيل الدخول بالبصمة (فك تشفير بيانات الدخول المحفوظة على الجهاز)
+  const handleBioLogin = async () => {
+    setBioBusy(true);
+    try {
+      const creds = await unlockBiometric();
+      if (!creds) { setToastMessage('لا توجد بصمة مسجّلة على هذا الجهاز'); return; }
+      await signInWithEmailAndPassword(auth, creds.email, creds.password);
+      setToastMessage('تم الدخول بالبصمة');
+    } catch (e: any) {
+      if (e?.name === 'NotAllowedError') setToastMessage('أُلغيت عملية البصمة');
+      else if (e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential') {
+        clearBioStore();
+        setBioEnabled(false);
+        setToastMessage('تغيّرت كلمة المرور — أعد تفعيل البصمة');
+      } else if (e?.message === 'no-prf') setToastMessage('متصفحك لا يدعم الدخول الآمن بالبصمة');
+      else setToastMessage('تعذّر الدخول بالبصمة');
+      console.error(e);
+    } finally {
+      setBioBusy(false);
+    }
+  };
+
+  // تفعيل البصمة على هذا الجهاز (يتحقق من كلمة المرور ثم يشفّرها بالبصمة)
+  const confirmEnableBiometric = async () => {
+    const user = auth.currentUser;
+    if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+    if (!bioSetupPassword.trim()) { setToastMessage('أدخل كلمة المرور'); return; }
+    setBioBusy(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email, bioSetupPassword);
+      await reauthenticateWithCredential(user, credential);
+      await registerBiometric(user.email, bioSetupPassword);
+      setBioEnabled(true);
+      setBioSetupModal(false);
+      setBioSetupPassword('');
+      setToastMessage('تم تفعيل الدخول بالبصمة على هذا الجهاز');
+    } catch (e: any) {
+      if (e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential') setToastMessage('كلمة المرور غير صحيحة');
+      else if (e?.name === 'NotAllowedError') setToastMessage('أُلغيت عملية البصمة');
+      else if (e?.message === 'no-prf') setToastMessage('متصفحك لا يدعم الدخول الآمن بالبصمة (PRF)');
+      else setToastMessage('تعذّر تفعيل البصمة');
+      console.error(e);
+    } finally {
+      setBioBusy(false);
+    }
+  };
+
+  // إلغاء البصمة من هذا الجهاز
+  const disableBiometric = () => {
+    clearBioStore();
+    setBioEnabled(false);
+    setToastMessage('تم إلغاء الدخول بالبصمة من هذا الجهاز');
+  };
+
   // Show loading while checking auth state
   if (authLoading) {
     return (
@@ -2410,6 +2558,12 @@ function App() {
               <span className="login-btn-icon">→</span>
             </button>
           </form>
+          {bioAvailable && bioEnabled && (
+            <button type="button" className="bio-login-btn" onClick={handleBioLogin} disabled={bioBusy}>
+              <span className="bio-login-icon">👤</span>
+              <span>{bioBusy ? 'جارٍ التحقق...' : 'دخول بالبصمة / Face ID'}</span>
+            </button>
+          )}
         </div>
         {toastMessage && <div className="toast">{toastMessage}</div>}
       </div>
@@ -2475,6 +2629,13 @@ function App() {
             </div>
           )}
         </div>
+        {bioAvailable && (
+          bioEnabled ? (
+            <button onClick={disableBiometric} className="btn secondary bio-toggle-btn" title="إلغاء الدخول بالبصمة من هذا الجهاز">🔒 إلغاء البصمة</button>
+          ) : (
+            <button onClick={() => { setBioSetupPassword(''); setBioSetupModal(true); }} className="btn secondary bio-toggle-btn" title="تفعيل الدخول بالبصمة على هذا الجهاز">👤 تفعيل البصمة</button>
+          )
+        )}
         <button onClick={handleLogout} className="btn secondary">تسجيل خروج</button>
       </header>
 
@@ -5153,6 +5314,40 @@ function App() {
         <div className="tower-lightbox" onClick={() => setTowerImagePreview(null)}>
           <button className="tower-lightbox-close" onClick={() => setTowerImagePreview(null)}>×</button>
           <img src={towerImagePreview} alt="صورة البرج" className="tower-lightbox-img" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Enable Biometric Modal — تفعيل الدخول بالبصمة */}
+      {bioSetupModal && (
+        <div className="modal-overlay" onClick={() => { setBioSetupModal(false); setBioSetupPassword(''); }}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>👤 تفعيل الدخول بالبصمة</h3>
+              <button onClick={() => { setBioSetupModal(false); setBioSetupPassword(''); }} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text" style={{ marginBottom: '16px' }}>
+                لتفعيل الدخول بالبصمة على هذا الجهاز، أدخل كلمة المرور للتأكيد. ستُشفَّر وتُحفظ محلياً على هذا الجهاز فقط، ولا تُفكّ إلا ببصمتك.
+              </p>
+              <div className="edit-field">
+                <label>كلمة المرور</label>
+                <input
+                  type="password"
+                  placeholder="كلمة المرور"
+                  value={bioSetupPassword}
+                  onChange={(e) => setBioSetupPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && confirmEnableBiometric()}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => { setBioSetupModal(false); setBioSetupPassword(''); }} className="btn secondary">إلغاء</button>
+              <button onClick={confirmEnableBiometric} className="btn primary" disabled={bioBusy}>
+                {bioBusy ? 'جارٍ التفعيل...' : 'تفعيل'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
