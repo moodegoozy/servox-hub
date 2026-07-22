@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updateProfile, updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
@@ -237,6 +237,17 @@ function App() {
   const [bioBusy, setBioBusy] = useState(false);
   const [bioSetupModal, setBioSetupModal] = useState(false);
   const [bioSetupPassword, setBioSetupPassword] = useState('');
+  // صفحة البروفايل
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileNameBusy, setProfileNameBusy] = useState(false);
+  const [profileNewEmail, setProfileNewEmail] = useState('');
+  const [profileEmailPassword, setProfileEmailPassword] = useState('');
+  const [profileEmailBusy, setProfileEmailBusy] = useState(false);
+  const [profileCurrentPassword, setProfileCurrentPassword] = useState('');
+  const [profileNewPassword, setProfileNewPassword] = useState('');
+  const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
+  const [profilePasswordBusy, setProfilePasswordBusy] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'city' | 'customer'; id: string; name: string} | null>(null);
@@ -2529,6 +2540,87 @@ function App() {
     setToastMessage('تم إلغاء الدخول بالبصمة من هذا الجهاز');
   };
 
+  // فتح صفحة البروفايل (تهيئة الحقول من الحساب الحالي)
+  const openProfile = () => {
+    setProfileName(auth.currentUser?.displayName || '');
+    setProfileNewEmail('');
+    setProfileEmailPassword('');
+    setProfileCurrentPassword('');
+    setProfileNewPassword('');
+    setProfileConfirmPassword('');
+    setShowProfileModal(true);
+  };
+
+  // حفظ اسم الحساب (displayName)
+  const saveProfileName = async () => {
+    const user = auth.currentUser;
+    if (!user) { setToastMessage('خطأ في المصادقة'); return; }
+    if (!profileName.trim()) { setToastMessage('أدخل الاسم'); return; }
+    setProfileNameBusy(true);
+    try {
+      await updateProfile(user, { displayName: profileName.trim() });
+      setToastMessage('تم تحديث الاسم');
+    } catch (e) {
+      setToastMessage('تعذّر تحديث الاسم');
+      console.error(e);
+    } finally {
+      setProfileNameBusy(false);
+    }
+  };
+
+  // تغيير البريد الإلكتروني (يرسل رابط تأكيد للبريد الجديد ثم يُحدَّث بعد الضغط عليه)
+  const saveProfileEmail = async () => {
+    const user = auth.currentUser;
+    if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+    if (!profileNewEmail.trim()) { setToastMessage('أدخل البريد الجديد'); return; }
+    if (!profileEmailPassword.trim()) { setToastMessage('أدخل كلمة المرور الحالية'); return; }
+    setProfileEmailBusy(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email, profileEmailPassword);
+      await reauthenticateWithCredential(user, credential);
+      await verifyBeforeUpdateEmail(user, profileNewEmail.trim());
+      setToastMessage('أُرسل رابط تأكيد إلى البريد الجديد — افتحه لإتمام التغيير');
+      setProfileNewEmail('');
+      setProfileEmailPassword('');
+    } catch (e: any) {
+      if (e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential') setToastMessage('كلمة المرور غير صحيحة');
+      else if (e?.code === 'auth/invalid-email') setToastMessage('البريد الجديد غير صحيح');
+      else if (e?.code === 'auth/email-already-in-use') setToastMessage('البريد مستخدم بالفعل');
+      else setToastMessage('تعذّر تغيير البريد');
+      console.error(e);
+    } finally {
+      setProfileEmailBusy(false);
+    }
+  };
+
+  // تغيير كلمة المرور (يُلغي البصمة المحفوظة لأنها تعتمد على كلمة المرور القديمة)
+  const saveProfilePassword = async () => {
+    const user = auth.currentUser;
+    if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
+    if (!profileCurrentPassword.trim() || !profileNewPassword.trim()) { setToastMessage('أدخل كلمة المرور الحالية والجديدة'); return; }
+    if (profileNewPassword.length < 6) { setToastMessage('كلمة المرور الجديدة قصيرة (٦ أحرف على الأقل)'); return; }
+    if (profileNewPassword !== profileConfirmPassword) { setToastMessage('تأكيد كلمة المرور غير مطابق'); return; }
+    setProfilePasswordBusy(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email, profileCurrentPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, profileNewPassword);
+      // كلمة المرور المخزّنة للبصمة أصبحت قديمة
+      if (getBioStore()) { clearBioStore(); setBioEnabled(false); }
+      setProfileCurrentPassword('');
+      setProfileNewPassword('');
+      setProfileConfirmPassword('');
+      setToastMessage('تم تغيير كلمة المرور' + (bioEnabled ? ' — أعد تفعيل البصمة' : ''));
+    } catch (e: any) {
+      if (e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential') setToastMessage('كلمة المرور الحالية غير صحيحة');
+      else if (e?.code === 'auth/weak-password') setToastMessage('كلمة المرور الجديدة ضعيفة');
+      else setToastMessage('تعذّر تغيير كلمة المرور');
+      console.error(e);
+    } finally {
+      setProfilePasswordBusy(false);
+    }
+  };
+
   // Show loading while checking auth state
   if (authLoading) {
     return (
@@ -2584,6 +2676,9 @@ function App() {
           <div className="theme-toggle-thumb">
             {darkMode ? '🌙' : '☀️'}
           </div>
+        </button>
+        <button className="profile-avatar-btn" onClick={openProfile} title="حساب المستخدم">
+          {(auth.currentUser?.displayName || auth.currentUser?.email || '؟').trim().charAt(0).toUpperCase()}
         </button>
         <div className="search-box">
           <input 
@@ -5320,6 +5415,67 @@ function App() {
         <div className="tower-lightbox" onClick={() => setTowerImagePreview(null)}>
           <button className="tower-lightbox-close" onClick={() => setTowerImagePreview(null)}>×</button>
           <img src={towerImagePreview} alt="صورة البرج" className="tower-lightbox-img" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Profile Modal — صفحة حساب المستخدم */}
+      {showProfileModal && (
+        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+          <div className="modal profile-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>👤 حساب المستخدم</h3>
+              <button onClick={() => setShowProfileModal(false)} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <div className="profile-hero">
+                <div className="profile-hero-avatar">
+                  {(auth.currentUser?.displayName || auth.currentUser?.email || '؟').trim().charAt(0).toUpperCase()}
+                </div>
+                <div className="profile-hero-info">
+                  <strong>{auth.currentUser?.displayName || 'بدون اسم'}</strong>
+                  <span className="small" dir="ltr">{auth.currentUser?.email}</span>
+                </div>
+              </div>
+
+              {/* الاسم */}
+              <div className="profile-section">
+                <div className="section-title-small">الاسم</div>
+                <div className="profile-row">
+                  <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="اسم الحساب" />
+                  <button className="btn primary" onClick={saveProfileName} disabled={profileNameBusy}>
+                    {profileNameBusy ? '...' : 'حفظ'}
+                  </button>
+                </div>
+              </div>
+
+              {/* البريد الإلكتروني */}
+              <div className="profile-section">
+                <div className="section-title-small">البريد الإلكتروني</div>
+                <p className="small" style={{ opacity: 0.7, margin: '0 0 8px' }}>الحالي: <span dir="ltr">{auth.currentUser?.email}</span></p>
+                <input type="email" dir="ltr" value={profileNewEmail} onChange={(e) => setProfileNewEmail(e.target.value)} placeholder="البريد الجديد" />
+                <input type="password" value={profileEmailPassword} onChange={(e) => setProfileEmailPassword(e.target.value)} placeholder="كلمة المرور الحالية للتأكيد" />
+                <button className="btn primary profile-full-btn" onClick={saveProfileEmail} disabled={profileEmailBusy}>
+                  {profileEmailBusy ? 'جارٍ الإرسال...' : 'تغيير البريد'}
+                </button>
+                <p className="small" style={{ opacity: 0.6, margin: '8px 0 0' }}>سيُرسل رابط تأكيد إلى البريد الجديد، ويُحدَّث بعد فتحه.</p>
+              </div>
+
+              {/* كلمة المرور */}
+              <div className="profile-section">
+                <div className="section-title-small">كلمة المرور</div>
+                <input type="password" value={profileCurrentPassword} onChange={(e) => setProfileCurrentPassword(e.target.value)} placeholder="كلمة المرور الحالية" />
+                <input type="password" value={profileNewPassword} onChange={(e) => setProfileNewPassword(e.target.value)} placeholder="كلمة المرور الجديدة" />
+                <input type="password" value={profileConfirmPassword} onChange={(e) => setProfileConfirmPassword(e.target.value)} placeholder="تأكيد كلمة المرور الجديدة" />
+                <button className="btn primary profile-full-btn" onClick={saveProfilePassword} disabled={profilePasswordBusy}>
+                  {profilePasswordBusy ? 'جارٍ التغيير...' : 'تغيير كلمة المرور'}
+                </button>
+                {bioEnabled && <p className="small" style={{ opacity: 0.6, margin: '8px 0 0' }}>ملاحظة: تغيير كلمة المرور سيُلغي الدخول بالبصمة على هذا الجهاز، فأعد تفعيله بعدها.</p>}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setShowProfileModal(false)} className="btn secondary">إغلاق</button>
+            </div>
+          </div>
         </div>
       )}
 
