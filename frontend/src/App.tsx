@@ -1,7 +1,8 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updateProfile, updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from './firebase';
 
 type City = {
   id: string;
@@ -69,6 +70,16 @@ type Card = {
   month: number;
   year: number;
   note?: string;
+};
+
+type ChatMessage = {
+  id: string;
+  senderEmail: string;
+  senderName?: string;
+  text?: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
+  createdAt: number;
 };
 
 type TowerStatus = 'working' | 'not-working' | 'cancelled';
@@ -304,6 +315,12 @@ function App() {
   const [waAmount, setWaAmount] = useState('');
   const [waQueue, setWaQueue] = useState<string[]>([]); // طابور الإرسال المتتابع للمحددين
   const [waQueuePos, setWaQueuePos] = useState(0);
+  // الشات العام بين حسابات الإدارة
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [showChat, setShowChat] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatUploading, setChatUploading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'city' | 'customer'; id: string; name: string} | null>(null);
@@ -1670,6 +1687,11 @@ function App() {
     isBioSupported().then(setBioAvailable);
   }, []);
 
+  // التمرير لأسفل الشات عند وصول رسائل جديدة أو فتحه
+  useEffect(() => {
+    if (showChat) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, showChat]);
+
   // Load data from Firestore on mount
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -1722,6 +1744,13 @@ function App() {
       setTowers(towersData);
     });
 
+    // الشات العام
+    const unsubscribeChat = onSnapshot(collection(db, 'chat'), (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
+      msgs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      setChatMessages(msgs);
+    });
+
     return () => {
       unsubscribeCities();
       unsubscribeCustomers();
@@ -1729,6 +1758,7 @@ function App() {
       unsubscribeIncomes();
       unsubscribeCards();
       unsubscribeTowers();
+      unsubscribeChat();
     };
   }, [isAuthenticated]);
 
@@ -2596,6 +2626,58 @@ function App() {
     setToastMessage('تم إلغاء الدخول بالبصمة من هذا الجهاز');
   };
 
+  // إرسال رسالة نصية في الشات العام
+  const sendChatMessage = async () => {
+    const user = auth.currentUser;
+    if (!user || !chatInput.trim()) return;
+    const text = chatInput.trim();
+    setChatInput('');
+    try {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      await setDoc(doc(db, 'chat', id), {
+        senderEmail: user.email || '',
+        senderName: user.displayName || '',
+        text,
+        createdAt: Date.now(),
+      });
+    } catch (e) {
+      setToastMessage('تعذّر إرسال الرسالة');
+      console.error(e);
+    }
+  };
+
+  // إرسال صورة أو فيديو في الشات (يُرفع إلى Firebase Storage)
+  const sendChatMedia = async (file?: File) => {
+    if (!file) return;
+    const user = auth.currentUser;
+    if (!user) return;
+    const isVideo = file.type.startsWith('video');
+    const isImage = file.type.startsWith('image');
+    if (!isVideo && !isImage) { setToastMessage('الملف يجب أن يكون صورة أو فيديو'); return; }
+    const maxMB = isVideo ? 50 : 10;
+    if (file.size > maxMB * 1024 * 1024) { setToastMessage(`الحجم أكبر من ${maxMB}MB`); return; }
+    setChatUploading(true);
+    try {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      const path = `chat/${id}_${file.name.replace(/[^\w.\-]/g, '_')}`;
+      const sRef = storageRef(storage, path);
+      await uploadBytes(sRef, file);
+      const url = await getDownloadURL(sRef);
+      await setDoc(doc(db, 'chat', id), {
+        senderEmail: user.email || '',
+        senderName: user.displayName || '',
+        mediaUrl: url,
+        mediaType: isVideo ? 'video' : 'image',
+        createdAt: Date.now(),
+      });
+    } catch (e) {
+      setToastMessage('تعذّر رفع الملف — تأكد من تفعيل Firebase Storage');
+      console.error(e);
+    } finally {
+      setChatUploading(false);
+    }
+  };
+
   // فتح صفحة البروفايل (تهيئة الحقول من الحساب الحالي)
   const openProfile = () => {
     setProfileName(auth.currentUser?.displayName || '');
@@ -2759,6 +2841,10 @@ function App() {
           <div className="theme-toggle-thumb">
             {darkMode ? '🌙' : '☀️'}
           </div>
+        </button>
+        <button className="chat-toggle-btn" onClick={() => setShowChat(true)} title="الشات العام بين حسابات الإدارة">
+          💬
+          {chatMessages.length > 0 && <span className="chat-toggle-count">{chatMessages.length}</span>}
         </button>
         <div className="search-box">
           <input 
@@ -5639,6 +5725,57 @@ function App() {
         <div className="tower-lightbox" onClick={() => setTowerImagePreview(null)}>
           <button className="tower-lightbox-close" onClick={() => setTowerImagePreview(null)}>×</button>
           <img src={towerImagePreview} alt="صورة البرج" className="tower-lightbox-img" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Chat Modal — الشات العام بين حسابات الإدارة */}
+      {showChat && (
+        <div className="modal-overlay chat-overlay" onClick={() => setShowChat(false)}>
+          <div className="chat-window" onClick={(e) => e.stopPropagation()}>
+            <div className="chat-header">
+              <div className="chat-header-title">💬 الشات العام</div>
+              <button onClick={() => setShowChat(false)} className="modal-close">×</button>
+            </div>
+            <div className="chat-messages">
+              {chatMessages.length === 0 ? (
+                <div className="chat-empty">لا توجد رسائل بعد — ابدأ المحادثة 👋</div>
+              ) : (
+                chatMessages.map(m => {
+                  const mine = m.senderEmail === auth.currentUser?.email;
+                  return (
+                    <div key={m.id} className={`chat-msg ${mine ? 'mine' : 'other'}`}>
+                      {!mine && <div className="chat-msg-sender">{m.senderName || m.senderEmail}</div>}
+                      {m.text && <div className="chat-msg-text">{m.text}</div>}
+                      {m.mediaUrl && m.mediaType === 'image' && (
+                        <img className="chat-msg-media" src={m.mediaUrl} alt="صورة" onClick={() => window.open(m.mediaUrl, '_blank')} />
+                      )}
+                      {m.mediaUrl && m.mediaType === 'video' && (
+                        <video className="chat-msg-media" src={m.mediaUrl} controls />
+                      )}
+                      <div className="chat-msg-time">{new Date(m.createdAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="chat-input-bar">
+              <label className="chat-attach" title="إرسال صورة أو فيديو">
+                📎
+                <input type="file" accept="image/*,video/*" hidden disabled={chatUploading} onChange={(e) => { sendChatMedia(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+              <input
+                type="text"
+                className="chat-text-input"
+                placeholder={chatUploading ? 'جارٍ رفع الملف...' : 'اكتب رسالة...'}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') sendChatMessage(); }}
+                disabled={chatUploading}
+              />
+              <button className="chat-send" onClick={sendChatMessage} disabled={!chatInput.trim() || chatUploading}>إرسال</button>
+            </div>
+          </div>
         </div>
       )}
 
