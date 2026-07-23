@@ -5371,8 +5371,8 @@ function App() {
                           .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'ar'));
                         return (
                           <div key={c.id} className="tower-queue-row">
-                            <div className="tower-queue-info">
-                              <strong>{c.name}</strong>
+                            <div className="tower-queue-info tower-user-info-clickable" onClick={() => openCustomerDetails(c)} title="عرض معلومات العميل الكاملة">
+                              <strong>{c.name} <span className="tower-user-info-hint">ℹ️</span></strong>
                               <span className="small">{c.userName || '-'} • {c.ipNumber || '-'}{cityName ? ` • ${cityName}` : ''}</span>
                             </div>
                             {cityTowers.length === 0 ? (
