@@ -2890,13 +2890,6 @@ function App() {
             </div>
           )}
         </div>
-        {bioAvailable && (
-          bioEnabled ? (
-            <button onClick={disableBiometric} className="btn secondary bio-toggle-btn" title="إلغاء الدخول بالبصمة من هذا الجهاز">🔒 إلغاء البصمة</button>
-          ) : (
-            <button onClick={() => { setBioSetupPassword(''); setBioSetupModal(true); }} className="btn secondary bio-toggle-btn" title="تفعيل الدخول بالبصمة على هذا الجهاز">👤 تفعيل البصمة</button>
-          )
-        )}
         <button className="profile-avatar-btn" onClick={openProfile} title="حسابي — الاسم والبريد وكلمة المرور">
           {(auth.currentUser?.displayName || auth.currentUser?.email || '؟').trim().charAt(0).toUpperCase()}
         </button>
@@ -5860,6 +5853,24 @@ function App() {
                 </button>
                 {bioEnabled && <p className="small" style={{ opacity: 0.6, margin: '8px 0 0' }}>ملاحظة: تغيير كلمة المرور سيُلغي الدخول بالبصمة على هذا الجهاز، فأعد تفعيله بعدها.</p>}
               </div>
+
+              {/* الدخول بالبصمة */}
+              {bioAvailable && (
+                <div className="profile-section">
+                  <div className="section-title-small">الدخول بالبصمة / Face ID</div>
+                  {bioEnabled ? (
+                    <>
+                      <p className="small" style={{ opacity: 0.7, margin: '0 0 10px' }}>✅ البصمة مفعّلة على هذا الجهاز — يمكنك الدخول بها وعرض كلمة المرور.</p>
+                      <button className="btn secondary profile-full-btn" onClick={disableBiometric}>🔒 إلغاء البصمة من هذا الجهاز</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="small" style={{ opacity: 0.7, margin: '0 0 10px' }}>فعّل الدخول بالبصمة على هذا الجهاز كبديل لكلمة المرور.</p>
+                      <button className="btn primary profile-full-btn" onClick={() => { setBioSetupPassword(''); setBioSetupModal(true); }}>👤 تفعيل البصمة</button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button onClick={closeProfile} className="btn secondary">إغلاق</button>
