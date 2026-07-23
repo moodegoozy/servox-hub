@@ -79,7 +79,9 @@ type ChatMessage = {
   text?: string;
   mediaUrl?: string;
   mediaPath?: string; // مسار الملف في Storage (لحذفه لاحقاً)
-  mediaType?: 'image' | 'video';
+  mediaType?: 'image' | 'video' | 'file';
+  fileName?: string; // اسم الملف الأصلي (للملفات العامة والتحميل)
+  fileSize?: number; // حجم الملف بالبايت
   createdAt: number;
   pinned?: boolean; // الرسائل المثبّتة لا تُحذف تلقائياً
 };
@@ -89,6 +91,46 @@ const CHAT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 // مفتاح «آخر قراءة» للشات — مستقل لكل حساب على هذا الجهاز
 const chatReadKey = (email?: string | null) => `servox_chat_lastread_${email || 'anon'}`;
+
+// تنسيق حجم الملف بصيغة مقروءة
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// أيقونة تناسب امتداد الملف
+const fileIcon = (name?: string): string => {
+  const ext = (name || '').split('.').pop()?.toLowerCase() || '';
+  if (['pdf'].includes(ext)) return '📕';
+  if (['doc', 'docx'].includes(ext)) return '📘';
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return '📗';
+  if (['ppt', 'pptx'].includes(ext)) return '📙';
+  if (['zip', 'rar', '7z'].includes(ext)) return '🗜️';
+  if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) return '🎵';
+  if (['txt', 'md'].includes(ext)) return '📄';
+  return '📎';
+};
+
+// تحميل ملف/وسائط — يجلبه كـ blob ليُحفظ باسمه، ويفتحه في تبويب جديد إن منع CORS ذلك
+const downloadFile = async (url: string, name: string) => {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = name || 'file';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objUrl);
+  } catch {
+    window.open(url, '_blank'); // بديل آمن
+  }
+};
 
 type TowerStatus = 'working' | 'not-working' | 'cancelled';
 
@@ -2723,16 +2765,19 @@ function App() {
     }
   };
 
-  // إرسال صورة أو فيديو في الشات (يُرفع إلى Firebase Storage)
+  // إرسال صورة أو فيديو أو أي ملف في الشات (يُرفع إلى Firebase Storage)
   const sendChatMedia = async (file?: File) => {
     if (!file) return;
     const user = auth.currentUser;
     if (!user) return;
     const isVideo = file.type.startsWith('video');
     const isImage = file.type.startsWith('image');
-    if (!isVideo && !isImage) { setToastMessage('الملف يجب أن يكون صورة أو فيديو'); return; }
-    const maxMB = isVideo ? 50 : 10;
-    if (file.size > maxMB * 1024 * 1024) { setToastMessage(`الحجم أكبر من ${maxMB}MB`); return; }
+    const kind: 'image' | 'video' | 'file' = isVideo ? 'video' : isImage ? 'image' : 'file';
+    const maxMB = isVideo ? 50 : isImage ? 10 : 25;
+    if (file.size > maxMB * 1024 * 1024) {
+      setToastMessage(`الحجم أكبر من ${maxMB}MB (${kind === 'video' ? 'فيديو' : kind === 'image' ? 'صورة' : 'ملف'})`);
+      return;
+    }
     setChatUploading(true);
     try {
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -2745,7 +2790,9 @@ function App() {
         senderName: user.displayName || '',
         mediaUrl: url,
         mediaPath: path,
-        mediaType: isVideo ? 'video' : 'image',
+        mediaType: kind,
+        fileName: file.name,
+        fileSize: file.size,
         createdAt: Date.now(),
       });
     } catch (e) {
@@ -5918,10 +5965,26 @@ function App() {
                       {m.pinned && <div className="chat-pinned-badge">📌 مثبّتة — لا تُحذف تلقائياً</div>}
                       {m.text && <div className="chat-msg-text">{m.text}</div>}
                       {m.mediaUrl && m.mediaType === 'image' && (
-                        <img className="chat-msg-media" src={m.mediaUrl} alt="صورة" onClick={() => window.open(m.mediaUrl, '_blank')} />
+                        <div className="chat-media-wrap">
+                          <img className="chat-msg-media" src={m.mediaUrl} alt="صورة" onClick={() => window.open(m.mediaUrl, '_blank')} />
+                          <button className="chat-download-btn" onClick={() => downloadFile(m.mediaUrl!, m.fileName || 'image.jpg')} title="تحميل الصورة">⬇️ تحميل</button>
+                        </div>
                       )}
                       {m.mediaUrl && m.mediaType === 'video' && (
-                        <video className="chat-msg-media" src={m.mediaUrl} controls />
+                        <div className="chat-media-wrap">
+                          <video className="chat-msg-media" src={m.mediaUrl} controls />
+                          <button className="chat-download-btn" onClick={() => downloadFile(m.mediaUrl!, m.fileName || 'video.mp4')} title="تحميل الفيديو">⬇️ تحميل</button>
+                        </div>
+                      )}
+                      {m.mediaUrl && m.mediaType === 'file' && (
+                        <button className="chat-file-card" onClick={() => downloadFile(m.mediaUrl!, m.fileName || 'file')} title="اضغط للتحميل">
+                          <span className="chat-file-icon">{fileIcon(m.fileName)}</span>
+                          <span className="chat-file-info">
+                            <span className="chat-file-name">{m.fileName || 'ملف'}</span>
+                            <span className="chat-file-size">{formatFileSize(m.fileSize)} • اضغط للتحميل</span>
+                          </span>
+                          <span className="chat-file-dl">⬇️</span>
+                        </button>
                       )}
                       <div className="chat-msg-footer">
                         <span className="chat-msg-time">{new Date(m.createdAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</span>
@@ -5940,9 +6003,9 @@ function App() {
               <div ref={chatEndRef} />
             </div>
             <div className="chat-input-bar">
-              <label className="chat-attach" title="إرسال صورة أو فيديو">
+              <label className="chat-attach" title="إرسال صورة أو فيديو أو ملف">
                 📎
-                <input type="file" accept="image/*,video/*" hidden disabled={chatUploading} onChange={(e) => { sendChatMedia(e.target.files?.[0]); e.target.value = ''; }} />
+                <input type="file" hidden disabled={chatUploading} onChange={(e) => { sendChatMedia(e.target.files?.[0]); e.target.value = ''; }} />
               </label>
               <input
                 type="text"
