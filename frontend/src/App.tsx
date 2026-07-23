@@ -87,6 +87,9 @@ type ChatMessage = {
 // مدة الاحتفاظ برسائل الشات — ٣ أشهر، ثم تُحذف تلقائياً عدا المثبّتة
 const CHAT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
+// مفتاح «آخر قراءة» للشات — مستقل لكل حساب على هذا الجهاز
+const chatReadKey = (email?: string | null) => `servox_chat_lastread_${email || 'anon'}`;
+
 type TowerStatus = 'working' | 'not-working' | 'cancelled';
 
 type Tower = {
@@ -327,6 +330,20 @@ function App() {
   const [chatUploading, setChatUploading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatCleanupDone = useRef(false); // يضمن تشغيل التنظيف مرة واحدة لكل جلسة
+  const [chatLastRead, setChatLastRead] = useState(0); // آخر وقت قراءة للشات — مستقل لكل حساب
+
+  // تعليم رسائل الشات كمقروءة للحساب الحالي
+  const markChatRead = () => {
+    const now = Date.now();
+    localStorage.setItem(chatReadKey(auth.currentUser?.email), String(now));
+    setChatLastRead(now);
+  };
+
+  // عدد الرسائل غير المقروءة — رسائل الآخرين الأحدث من آخر قراءة
+  const chatUnreadCount = useMemo(
+    () => chatMessages.filter(m => m.createdAt > chatLastRead && m.senderEmail !== auth.currentUser?.email).length,
+    [chatMessages, chatLastRead]
+  );
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'city' | 'customer'; id: string; name: string} | null>(null);
@@ -1695,8 +1712,18 @@ function App() {
 
   // التمرير لأسفل الشات عند وصول رسائل جديدة أو فتحه
   useEffect(() => {
-    if (showChat) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (showChat) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      markChatRead(); // الشات مفتوح ⇒ الرسائل تُعتبر مقروءة
+    }
   }, [chatMessages, showChat]);
+
+  // تحميل آخر قراءة للحساب الحالي (مستقل لكل حساب)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const saved = Number(localStorage.getItem(chatReadKey(auth.currentUser?.email)) || 0);
+    setChatLastRead(saved);
+  }, [isAuthenticated]);
 
   // تنظيف رسائل الشات الأقدم من ٣ أشهر — مرة واحدة بعد تحميل الرسائل
   useEffect(() => {
@@ -2899,9 +2926,9 @@ function App() {
             {darkMode ? '🌙' : '☀️'}
           </div>
         </button>
-        <button className="chat-toggle-btn" onClick={() => setShowChat(true)} title="الشات العام بين حسابات الإدارة">
+        <button className="chat-toggle-btn" onClick={() => { setShowChat(true); markChatRead(); }} title="الشات العام بين حسابات الإدارة">
           💬
-          {chatMessages.length > 0 && <span className="chat-toggle-count">{chatMessages.length}</span>}
+          {chatUnreadCount > 0 && <span className="chat-toggle-count">{chatUnreadCount}</span>}
         </button>
         <div className="search-box">
           <input 
