@@ -95,6 +95,46 @@ const TOWER_STATUS: Record<TowerStatus, { label: string; icon: string; cls: stri
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+// ===== رسائل واتساب للعملاء =====
+// القوالب تستخدم متغيّرات: {الاسم} {المدينة} {الجوال} {المبلغ}
+const WA_TEMPLATES: { id: string; title: string; body: string }[] = [
+  {
+    id: 'reminder',
+    title: 'تذكير ودّي بالسداد',
+    body: 'مرحباً {الاسم} 👋\nنذكّركم بسداد اشتراك الإنترنت بمبلغ {المبلغ} ﷼.\nنشكر لكم تعاونكم 🌐',
+  },
+  {
+    id: 'due',
+    title: 'مبلغ مستحق',
+    body: 'عميلنا العزيز {الاسم} ({المدينة})\nلديكم مبلغ مستحق قدره {المبلغ} ﷼ على اشتراك الإنترنت.\nيرجى السداد في أقرب وقت، وشكراً لكم.',
+  },
+  {
+    id: 'thanks',
+    title: 'شكر بعد السداد',
+    body: 'شكراً لك {الاسم} 🌟\nتم استلام سداد اشتراككم بنجاح. نتمنى لكم تجربة إنترنت ممتازة 🌐',
+  },
+];
+const WA_CUSTOM_KEY = 'servox_wa_custom_template';
+
+// تحويل رقم الجوال إلى صيغة واتساب الدولية (السعودية افتراضاً)
+const normalizePhone = (raw?: string): string => {
+  if (!raw) return '';
+  let d = raw.replace(/\D/g, ''); // أرقام فقط
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('966')) return d;
+  if (d.startsWith('0')) return '966' + d.slice(1);
+  if (d.length === 9 && d.startsWith('5')) return '966' + d;
+  return d;
+};
+
+// تعبئة متغيّرات القالب ببيانات العميل
+const fillTemplate = (body: string, vars: { name: string; city: string; phone: string; amount: string }): string =>
+  body
+    .replace(/\{الاسم\}/g, vars.name)
+    .replace(/\{المدينة\}/g, vars.city)
+    .replace(/\{الجوال\}/g, vars.phone)
+    .replace(/\{المبلغ\}/g, vars.amount);
+
 // ===== الدخول بالبصمة / Face ID (WebAuthn + امتداد PRF) =====
 // البصمة تشتقّ مفتاحاً من عتاد الجهاز يُشفَّر به كلمة المرور محلياً (AES-GCM)،
 // فلا تُفكّ إلا بنجاح البصمة على هذا الجهاز نفسه. التخزين محلي فقط (localStorage).
@@ -207,7 +247,7 @@ function App() {
   const [notes, setNotes] = useState('');
   const [customerTowerId, setCustomerTowerId] = useState(''); // البرج المختار في فورم إضافة العميل
   const [toastMessage, setToastMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db' | 'pool' | 'towers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' | 'revenues' | 'discounts' | 'suspended' | 'expenses' | 'customers-db' | 'pool' | 'towers' | 'whatsapp'>('dashboard');
   // مخزن اليوزرات والـ IP
   const [poolCityIds, setPoolCityIds] = useState<string[]>([]);
   const [poolSearch, setPoolSearch] = useState('');
@@ -255,6 +295,15 @@ function App() {
   const [showProfileConfPw, setShowProfileConfPw] = useState(false);
   const [revealedCurrentPassword, setRevealedCurrentPassword] = useState<string | null>(null); // كلمة المرور الحالية المكشوفة بالبصمة
   const [revealBusy, setRevealBusy] = useState(false);
+  // تبويب واتساب
+  const [waCityId, setWaCityId] = useState<string | null>(null);
+  const [waStatusFilter, setWaStatusFilter] = useState<'all' | 'paid' | 'unpaid' | 'partial'>('unpaid');
+  const [waSelected, setWaSelected] = useState<string[]>([]);
+  const [waTemplateId, setWaTemplateId] = useState<string>(WA_TEMPLATES[0].id);
+  const [waCustomTemplate, setWaCustomTemplate] = useState<string>(() => localStorage.getItem(WA_CUSTOM_KEY) || 'مرحباً {الاسم} 👋\nنذكّركم بسداد مبلغ {المبلغ} ﷼ لمدينة {المدينة}.');
+  const [waAmount, setWaAmount] = useState('');
+  const [waQueue, setWaQueue] = useState<string[]>([]); // طابور الإرسال المتتابع للمحددين
+  const [waQueuePos, setWaQueuePos] = useState(0);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'city' | 'customer'; id: string; name: string} | null>(null);
@@ -2779,6 +2828,7 @@ function App() {
         <button className={`tab-btn ${activeTab === 'suspended' ? 'active' : ''}`} onClick={() => setActiveTab('suspended')}>إيقاف مؤقت</button>
         <button className={`tab-btn ${activeTab === 'pool' ? 'active' : ''}`} onClick={() => setActiveTab('pool')}>user number &amp; ip number</button>
         <button className={`tab-btn ${activeTab === 'towers' ? 'active' : ''}`} onClick={() => setActiveTab('towers')}>الأبراج</button>
+        <button className={`tab-btn ${activeTab === 'whatsapp' ? 'active' : ''}`} onClick={() => setActiveTab('whatsapp')}>واتساب</button>
       </div>
 
       {loading ? (
@@ -5184,6 +5234,146 @@ function App() {
                 </div>
               );
             })()}
+          </div>
+          );
+        })()}
+
+        {activeTab === 'whatsapp' && (() => {
+          const statusMatch = (c: Customer) => {
+            if (waStatusFilter === 'all') return true;
+            if (waStatusFilter === 'paid') return c.paymentStatus === 'paid';
+            if (waStatusFilter === 'partial') return c.paymentStatus === 'partial';
+            return !c.paymentStatus || c.paymentStatus === 'unpaid'; // ما سدد
+          };
+          const waCustomers = customers
+            .filter(c => (!waCityId || c.cityId === waCityId) && statusMatch(c))
+            .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+          const selectedSet = new Set(waSelected);
+          const templateBody = waTemplateId === 'custom' ? waCustomTemplate : (WA_TEMPLATES.find(t => t.id === waTemplateId)?.body || '');
+          const buildMsg = (c: Customer) => {
+            const cityName = cities.find(ct => ct.id === c.cityId)?.name || '';
+            const amount = waAmount.trim() || (c.subscriptionValue != null ? String(c.subscriptionValue) : '');
+            return fillTemplate(templateBody, { name: c.name, city: cityName, phone: c.phone || '', amount });
+          };
+          const waLink = (c: Customer) => `https://wa.me/${normalizePhone(c.phone)}?text=${encodeURIComponent(buildMsg(c))}`;
+          const toggleOne = (id: string) => setWaSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+          const allVisibleIds = waCustomers.map(c => c.id);
+          const allSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedSet.has(id));
+          const toggleAll = () => setWaSelected(allSelected ? [] : allVisibleIds);
+          const selectedCustomers = waCustomers.filter(c => selectedSet.has(c.id));
+          const queueActive = waQueue.length > 0 && waQueuePos < waQueue.length;
+          const startQueue = () => {
+            const ids = selectedCustomers.map(c => c.id);
+            if (ids.length === 0) return;
+            setWaQueue(ids);
+            setWaQueuePos(1);
+            window.open(waLink(selectedCustomers[0]), '_blank');
+          };
+          const sendNext = () => {
+            const c = customers.find(x => x.id === waQueue[waQueuePos]);
+            if (c) window.open(waLink(c), '_blank');
+            setWaQueuePos(p => p + 1);
+          };
+
+          return (
+          <div className="section wa-section">
+            <div className="wa-hero">
+              <div className="wa-hero-icon">💬</div>
+              <div>
+                <h2 className="wa-hero-title">رسائل واتساب للعملاء</h2>
+                <p className="wa-hero-subtitle">ذكّر عملاءك بالسداد برسالة جاهزة تُعبّأ تلقائياً باسم العميل ومدينته وجواله والمبلغ</p>
+              </div>
+            </div>
+
+            {/* القالب */}
+            <div className="wa-panel">
+              <div className="wa-panel-title">📝 القالب</div>
+              <div className="wa-templates">
+                {WA_TEMPLATES.map(t => (
+                  <button key={t.id} className={`wa-template-chip ${waTemplateId === t.id ? 'active' : ''}`} onClick={() => setWaTemplateId(t.id)}>{t.title}</button>
+                ))}
+                <button className={`wa-template-chip ${waTemplateId === 'custom' ? 'active' : ''}`} onClick={() => setWaTemplateId('custom')}>✏️ قالب مخصص</button>
+              </div>
+              {waTemplateId === 'custom' ? (
+                <div className="wa-custom-wrap">
+                  <textarea className="wa-custom-area" value={waCustomTemplate} onChange={(e) => setWaCustomTemplate(e.target.value)} rows={4} placeholder="اكتب قالبك مستخدماً المتغيّرات..." />
+                  <button className="btn secondary btn-sm" onClick={() => { localStorage.setItem(WA_CUSTOM_KEY, waCustomTemplate); setToastMessage('تم حفظ القالب المخصص'); }}>💾 حفظ القالب</button>
+                </div>
+              ) : (
+                <div className="wa-template-preview">{templateBody}</div>
+              )}
+              <div className="wa-vars-hint">المتغيّرات التلقائية: <code>{'{الاسم}'}</code> <code>{'{المدينة}'}</code> <code>{'{الجوال}'}</code> <code>{'{المبلغ}'}</code></div>
+              <div className="wa-amount-row">
+                <label>المبلغ:</label>
+                <input type="number" value={waAmount} onChange={(e) => setWaAmount(e.target.value)} placeholder="اتركه فارغاً لاستخدام قيمة اشتراك كل عميل" />
+              </div>
+            </div>
+
+            {/* الفلاتر */}
+            <div className="wa-toolbar">
+              <select className="cards-select" value={waCityId ?? ''} onChange={(e) => { setWaCityId(e.target.value || null); setWaSelected([]); }}>
+                <option value="">كل المدن</option>
+                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <div className="wa-status-filters">
+                {([['all', 'الكل'], ['unpaid', 'ما سدد'], ['paid', 'سدد'], ['partial', 'جزئي']] as const).map(([k, label]) => (
+                  <button key={k} className={`wa-status-btn ${waStatusFilter === k ? 'active' : ''}`} onClick={() => { setWaStatusFilter(k); setWaSelected([]); }}>{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* شريط الإرسال للمحددين */}
+            {selectedCustomers.length > 0 && (
+              <div className="wa-send-bar">
+                {!queueActive ? (
+                  <button className="wa-bulk-btn" onClick={startQueue}>📤 إرسال للمحددين ({selectedCustomers.length}) تِباعاً</button>
+                ) : (
+                  <>
+                    <span className="wa-queue-progress">إرسال {waQueuePos} من {waQueue.length}</span>
+                    <button className="wa-bulk-btn" onClick={sendNext}>▶ التالي</button>
+                    <button className="btn secondary btn-sm" onClick={() => { setWaQueue([]); setWaQueuePos(0); }}>إيقاف</button>
+                  </>
+                )}
+                <span className="wa-send-hint">يفتح محادثة كل عميل برسالته جاهزة — اضغط إرسال داخل واتساب ثم «التالي».</span>
+              </div>
+            )}
+
+            {/* قائمة العملاء */}
+            {waCustomers.length === 0 ? (
+              <div className="cards-empty"><div className="cards-empty-icon">💬</div><p>لا يوجد عملاء مطابقون للفلتر</p></div>
+            ) : (
+              <>
+                <div className="wa-list-head">
+                  <label className="wa-checkbox-label">
+                    <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+                    تحديد الكل ({waCustomers.length})
+                  </label>
+                  <span className="wa-selected-count">المحدد: {selectedCustomers.length}</span>
+                </div>
+                <div className="wa-list">
+                  {waCustomers.map(c => {
+                    const cityName = cities.find(ct => ct.id === c.cityId)?.name || '—';
+                    const hasPhone = !!normalizePhone(c.phone);
+                    return (
+                      <div key={c.id} className={`wa-row ${selectedSet.has(c.id) ? 'selected' : ''}`}>
+                        <label className="wa-checkbox-label">
+                          <input type="checkbox" checked={selectedSet.has(c.id)} onChange={() => toggleOne(c.id)} />
+                        </label>
+                        <div className="wa-row-info">
+                          <strong>{c.name}</strong>
+                          <span className="small">{cityName} • {c.phone || 'بدون جوال'}</span>
+                        </div>
+                        {hasPhone ? (
+                          <a className="wa-send-btn" href={waLink(c)} target="_blank" rel="noopener noreferrer">📱 إرسال</a>
+                        ) : (
+                          <span className="wa-nophone">لا يوجد جوال</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
           );
         })()}
