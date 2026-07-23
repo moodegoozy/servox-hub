@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updateProfile, updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
 
 type City = {
@@ -78,9 +78,14 @@ type ChatMessage = {
   senderName?: string;
   text?: string;
   mediaUrl?: string;
+  mediaPath?: string; // مسار الملف في Storage (لحذفه لاحقاً)
   mediaType?: 'image' | 'video';
   createdAt: number;
+  pinned?: boolean; // الرسائل المثبّتة لا تُحذف تلقائياً
 };
+
+// مدة الاحتفاظ برسائل الشات — ٣ أشهر، ثم تُحذف تلقائياً عدا المثبّتة
+const CHAT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 type TowerStatus = 'working' | 'not-working' | 'cancelled';
 
@@ -321,6 +326,7 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatUploading, setChatUploading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatCleanupDone = useRef(false); // يضمن تشغيل التنظيف مرة واحدة لكل جلسة
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'city' | 'customer'; id: string; name: string} | null>(null);
@@ -1692,6 +1698,13 @@ function App() {
     if (showChat) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, showChat]);
 
+  // تنظيف رسائل الشات الأقدم من ٣ أشهر — مرة واحدة بعد تحميل الرسائل
+  useEffect(() => {
+    if (!isAuthenticated || chatCleanupDone.current || chatMessages.length === 0) return;
+    chatCleanupDone.current = true;
+    cleanupOldChat(chatMessages);
+  }, [isAuthenticated, chatMessages]);
+
   // Load data from Firestore on mount
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -2667,6 +2680,7 @@ function App() {
         senderEmail: user.email || '',
         senderName: user.displayName || '',
         mediaUrl: url,
+        mediaPath: path,
         mediaType: isVideo ? 'video' : 'image',
         createdAt: Date.now(),
       });
@@ -2676,6 +2690,49 @@ function App() {
     } finally {
       setChatUploading(false);
     }
+  };
+
+  // تثبيت/إلغاء تثبيت رسالة — المثبّتة محميّة من الحذف التلقائي
+  const toggleChatPin = async (m: ChatMessage) => {
+    try {
+      const { id, ...rest } = m;
+      const data: Record<string, unknown> = {};
+      Object.entries(rest).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') data[k] = v;
+      });
+      if (m.pinned) delete data.pinned;
+      else data.pinned = true;
+      await setDoc(doc(db, 'chat', id), data);
+      setToastMessage(m.pinned ? 'أُلغي التثبيت — ستُحذف تلقائياً بعد ٣ أشهر' : '📌 تم التثبيت — لن تُحذف تلقائياً');
+    } catch (e) {
+      setToastMessage('تعذّر تغيير التثبيت');
+      console.error(e);
+    }
+  };
+
+  // حذف رسائل الشات الأقدم من ٣ أشهر (عدا المثبّتة) مع ملفات الوسائط
+  const cleanupOldChat = async (messages: ChatMessage[]) => {
+    const cutoff = Date.now() - CHAT_RETENTION_MS;
+    const expired = messages.filter(m => !m.pinned && m.createdAt < cutoff);
+    if (expired.length === 0) return;
+    let removed = 0;
+    for (const m of expired) {
+      try {
+        // احذف ملف الوسائط أولاً حتى لا تتراكم المساحة
+        if (m.mediaUrl || m.mediaPath) {
+          try {
+            await deleteObject(storageRef(storage, m.mediaPath || m.mediaUrl!));
+          } catch (err) {
+            console.warn('تعذّر حذف ملف الوسائط (قد يكون محذوفاً مسبقاً)', err);
+          }
+        }
+        await deleteDoc(doc(db, 'chat', m.id));
+        removed++;
+      } catch (e) {
+        console.error('تعذّر حذف رسالة قديمة', e);
+      }
+    }
+    if (removed > 0) setToastMessage(`🧹 حُذفت ${removed} رسالة أقدم من ٣ أشهر`);
   };
 
   // فتح صفحة البروفايل (تهيئة الحقول من الحساب الحالي)
@@ -5726,7 +5783,10 @@ function App() {
         <div className="modal-overlay chat-overlay" onClick={() => setShowChat(false)}>
           <div className="chat-window" onClick={(e) => e.stopPropagation()}>
             <div className="chat-header">
-              <div className="chat-header-title">💬 الشات العام</div>
+              <div className="chat-header-title">
+                💬 الشات العام
+                <span className="chat-retention-hint">الرسائل تُحذف تلقائياً بعد ٣ أشهر — ثبّت المهم 📌</span>
+              </div>
               <button onClick={() => setShowChat(false)} className="modal-close">×</button>
             </div>
             <div className="chat-messages">
@@ -5736,8 +5796,9 @@ function App() {
                 chatMessages.map(m => {
                   const mine = m.senderEmail === auth.currentUser?.email;
                   return (
-                    <div key={m.id} className={`chat-msg ${mine ? 'mine' : 'other'}`}>
+                    <div key={m.id} className={`chat-msg ${mine ? 'mine' : 'other'} ${m.pinned ? 'pinned' : ''}`}>
                       {!mine && <div className="chat-msg-sender">{m.senderName || m.senderEmail}</div>}
+                      {m.pinned && <div className="chat-pinned-badge">📌 مثبّتة — لا تُحذف تلقائياً</div>}
                       {m.text && <div className="chat-msg-text">{m.text}</div>}
                       {m.mediaUrl && m.mediaType === 'image' && (
                         <img className="chat-msg-media" src={m.mediaUrl} alt="صورة" onClick={() => window.open(m.mediaUrl, '_blank')} />
@@ -5745,7 +5806,16 @@ function App() {
                       {m.mediaUrl && m.mediaType === 'video' && (
                         <video className="chat-msg-media" src={m.mediaUrl} controls />
                       )}
-                      <div className="chat-msg-time">{new Date(m.createdAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</div>
+                      <div className="chat-msg-footer">
+                        <span className="chat-msg-time">{new Date(m.createdAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</span>
+                        <button
+                          className={`chat-pin-btn ${m.pinned ? 'active' : ''}`}
+                          onClick={() => toggleChatPin(m)}
+                          title={m.pinned ? 'إلغاء التثبيت (ستُحذف بعد ٣ أشهر)' : 'تثبيت الرسالة (تمنع حذفها التلقائي)'}
+                        >
+                          📌
+                        </button>
+                      </div>
                     </div>
                   );
                 })

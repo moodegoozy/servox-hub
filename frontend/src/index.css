@@ -6862,6 +6862,56 @@ textarea {
   .wa-list { grid-template-columns: 1fr; }
 }
 
+/* ===== تثبيت رسائل الشات + تنبيه الاحتفاظ ===== */
+.chat-retention-hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.chat-msg.pinned {
+  border: 1.5px solid #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+.chat-pinned-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 8px;
+  padding: 3px 8px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+
+.chat-msg-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.chat-pin-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  opacity: 0.35;
+  filter: grayscale(1);
+  transition: opacity 0.15s, filter 0.15s, background 0.15s;
+}
+.chat-pin-btn:hover { opacity: 0.8; filter: grayscale(0); background: rgba(245, 158, 11, 0.15); }
+.chat-pin-btn.active { opacity: 1; filter: grayscale(0); }
+
+[data-theme="dark"] .chat-pinned-badge { color: #fbbf24; background: rgba(245, 158, 11, 0.2); }
+
 /* ===== الشات العام ===== */
 .chat-toggle-btn {
   position: relative;
