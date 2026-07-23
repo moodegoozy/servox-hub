@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updateProfile, updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
 
 type City = {
@@ -113,22 +113,45 @@ const fileIcon = (name?: string): string => {
   return '📎';
 };
 
-// تحميل ملف/وسائط — يجلبه كـ blob ليُحفظ باسمه، ويفتحه في تبويب جديد إن منع CORS ذلك
-const downloadFile = async (url: string, name: string) => {
+const isMobileDevice = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+// تحميل ملف/وسائط بأفضل طريقة متاحة:
+// على الجوال ← مشاركة النظام الأصلية (حفظ في الملفات/الصور)، ثم تحميل blob، وأخيراً فتح الرابط
+const downloadFile = async (url: string, name: string): Promise<void> => {
+  const fallbackOpen = () => window.open(url, '_blank');
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('fetch failed');
     const blob = await res.blob();
+    const fileName = name || 'file';
+
+    // 1) الجوال: مشاركة أصلية تتيح «حفظ في الملفات» أو «حفظ الصورة»
+    const nav = navigator as any;
+    if (isMobileDevice() && nav.canShare) {
+      try {
+        const f = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+        if (nav.canShare({ files: [f] })) {
+          await nav.share({ files: [f], title: fileName });
+          return;
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return; // المستخدم ألغى المشاركة
+        // غير ذلك: نكمل للطريقة التالية
+      }
+    }
+
+    // 2) تحميل مباشر عبر رابط blob
     const objUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = objUrl;
-    a.download = name || 'file';
+    a.download = fileName;
+    a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(objUrl);
+    setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
   } catch {
-    window.open(url, '_blank'); // بديل آمن
+    fallbackOpen(); // بديل أخير (يعمل دائماً)
   }
 };
 
@@ -377,6 +400,9 @@ function App() {
   const chatCleanupDone = useRef(false); // يضمن تشغيل التنظيف مرة واحدة لكل جلسة
   const [chatLastRead, setChatLastRead] = useState(0); // آخر وقت قراءة للشات — مستقل لكل حساب
   const [chatDeleteConfirm, setChatDeleteConfirm] = useState<ChatMessage | null>(null); // تأكيد حذف رسالة
+  const [chatUploadProgress, setChatUploadProgress] = useState(0); // نسبة تقدّم الرفع %
+  const [chatUploadName, setChatUploadName] = useState(''); // اسم الملف الجاري رفعه
+  const [chatDownloadingId, setChatDownloadingId] = useState<string | null>(null); // الرسالة الجاري تحميل مرفقها
 
   // تعليم رسائل الشات كمقروءة للحساب الحالي
   const markChatRead = () => {
@@ -2780,12 +2806,19 @@ function App() {
       return;
     }
     setChatUploading(true);
+    setChatUploadProgress(0);
+    setChatUploadName(file.name);
     try {
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
       const path = `chat/${id}_${file.name.replace(/[^\w.\-]/g, '_')}`;
       const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
+      // رفع قابل للاستئناف لمتابعة نسبة التقدّم لحظياً
+      const task = uploadBytesResumable(sRef, file);
+      task.on('state_changed', (snap) => {
+        setChatUploadProgress(snap.totalBytes ? Math.round((snap.bytesTransferred / snap.totalBytes) * 100) : 0);
+      });
+      await task;
+      const url = await getDownloadURL(task.snapshot.ref);
       await setDoc(doc(db, 'chat', id), {
         senderEmail: user.email || '',
         senderName: user.displayName || '',
@@ -2801,6 +2834,19 @@ function App() {
       console.error(e);
     } finally {
       setChatUploading(false);
+      setChatUploadProgress(0);
+      setChatUploadName('');
+    }
+  };
+
+  // تحميل مرفق رسالة مع إظهار حالة «جارٍ التحميل»
+  const handleDownload = async (m: ChatMessage, fallbackName: string) => {
+    if (!m.mediaUrl) return;
+    setChatDownloadingId(m.id);
+    try {
+      await downloadFile(m.mediaUrl, m.fileName || fallbackName);
+    } finally {
+      setChatDownloadingId(null);
     }
   };
 
@@ -5987,23 +6033,29 @@ function App() {
                       {m.mediaUrl && m.mediaType === 'image' && (
                         <div className="chat-media-wrap">
                           <img className="chat-msg-media" src={m.mediaUrl} alt="صورة" onClick={() => window.open(m.mediaUrl, '_blank')} />
-                          <button className="chat-download-btn" onClick={() => downloadFile(m.mediaUrl!, m.fileName || 'image.jpg')} title="تحميل الصورة">⬇️ تحميل</button>
+                          <button className="chat-download-btn" disabled={chatDownloadingId === m.id} onClick={() => handleDownload(m, 'image.jpg')} title="تحميل الصورة">
+                            {chatDownloadingId === m.id ? '... جارٍ' : '⬇️ تحميل'}
+                          </button>
                         </div>
                       )}
                       {m.mediaUrl && m.mediaType === 'video' && (
                         <div className="chat-media-wrap">
                           <video className="chat-msg-media" src={m.mediaUrl} controls />
-                          <button className="chat-download-btn" onClick={() => downloadFile(m.mediaUrl!, m.fileName || 'video.mp4')} title="تحميل الفيديو">⬇️ تحميل</button>
+                          <button className="chat-download-btn" disabled={chatDownloadingId === m.id} onClick={() => handleDownload(m, 'video.mp4')} title="تحميل الفيديو">
+                            {chatDownloadingId === m.id ? '... جارٍ' : '⬇️ تحميل'}
+                          </button>
                         </div>
                       )}
                       {m.mediaUrl && m.mediaType === 'file' && (
-                        <button className="chat-file-card" onClick={() => downloadFile(m.mediaUrl!, m.fileName || 'file')} title="اضغط للتحميل">
+                        <button className="chat-file-card" disabled={chatDownloadingId === m.id} onClick={() => handleDownload(m, 'file')} title="اضغط للتحميل">
                           <span className="chat-file-icon">{fileIcon(m.fileName)}</span>
                           <span className="chat-file-info">
                             <span className="chat-file-name">{m.fileName || 'ملف'}</span>
-                            <span className="chat-file-size">{formatFileSize(m.fileSize)} • اضغط للتحميل</span>
+                            <span className="chat-file-size">
+                              {formatFileSize(m.fileSize)} • {chatDownloadingId === m.id ? 'جارٍ التحميل...' : 'اضغط للتحميل'}
+                            </span>
                           </span>
-                          <span className="chat-file-dl">⬇️</span>
+                          <span className="chat-file-dl">{chatDownloadingId === m.id ? '⏳' : '⬇️'}</span>
                         </button>
                       )}
                       <div className="chat-msg-footer">
@@ -6033,6 +6085,17 @@ function App() {
               )}
               <div ref={chatEndRef} />
             </div>
+            {chatUploading && (
+              <div className="chat-upload-progress">
+                <div className="chat-upload-head">
+                  <span className="chat-upload-name">📤 {chatUploadName}</span>
+                  <span className="chat-upload-pct">{chatUploadProgress}%</span>
+                </div>
+                <div className="chat-upload-track">
+                  <div className="chat-upload-fill" style={{ width: `${chatUploadProgress}%` }} />
+                </div>
+              </div>
+            )}
             <div className="chat-input-bar">
               <label className="chat-attach" title="إرسال صورة أو فيديو أو ملف">
                 📎

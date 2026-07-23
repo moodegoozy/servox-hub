@@ -6948,6 +6948,51 @@ textarea {
   transition: filter 0.2s, transform 0.15s;
 }
 .chat-file-card:hover { transform: translateY(-1px); filter: brightness(0.97); }
+.chat-file-card:disabled { opacity: 0.7; cursor: wait; transform: none; }
+.chat-download-btn:disabled { opacity: 0.8; cursor: wait; }
+
+/* على الشاشات اللمسية لا يوجد hover — أظهر زر التحميل دائماً */
+@media (hover: none), (max-width: 720px) {
+  .chat-download-btn { opacity: 1; }
+}
+
+/* شريط تقدّم الرفع */
+.chat-upload-progress {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  background: var(--bg-flat, #f8fafc);
+}
+.chat-upload-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.chat-upload-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-upload-pct { font-size: 12px; font-weight: 800; color: var(--primary); flex-shrink: 0; }
+.chat-upload-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border, #e2e8f0);
+  overflow: hidden;
+}
+.chat-upload-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6366f1 0%, #4f46e5 100%);
+  transition: width 0.2s ease;
+}
+
+[data-theme="dark"] .chat-upload-progress { background: rgba(15, 23, 42, 0.6); border-color: var(--border); }
+[data-theme="dark"] .chat-upload-track { background: rgba(148, 163, 184, 0.25); }
 .chat-file-icon { font-size: 26px; flex-shrink: 0; }
 .chat-file-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .chat-file-name {
