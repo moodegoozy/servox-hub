@@ -6862,6 +6862,23 @@ textarea {
   .wa-list { grid-template-columns: 1fr; }
 }
 
+/* زر التأكيد بالبصمة داخل نوافذ كلمة المرور */
+.bio-confirm-btn {
+  background: var(--primary-glow, #eef2ff);
+  color: var(--primary);
+  border: 1.5px solid var(--primary, #6366f1);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.bio-confirm-btn:hover { filter: brightness(1.04); transform: translateY(-1px); }
+.bio-confirm-btn:disabled { opacity: 0.6; transform: none; cursor: default; }
+
+[data-theme="dark"] .bio-confirm-btn {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: var(--primary-light, #a5b4fc);
+}
+
 /* ===== تثبيت رسائل الشات + تنبيه الاحتفاظ ===== */
 .chat-retention-hint {
   display: block;

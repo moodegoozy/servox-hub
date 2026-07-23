@@ -832,8 +832,8 @@ function App() {
     }
   };
 
-  const confirmDiscountDelete = async () => {
-    if (!discountDeleteConfirm || !discountDeletePassword.trim()) {
+  const confirmDiscountDelete = async (pwOverride?: string) => {
+    if (!discountDeleteConfirm || !(pwOverride ?? discountDeletePassword).trim()) {
       setToastMessage('أدخل كلمة المرور');
       return;
     }
@@ -847,7 +847,7 @@ function App() {
       }
 
       // التحقق من كلمة المرور
-      const credential = EmailAuthProvider.credential(user.email, discountDeletePassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? discountDeletePassword);
       await reauthenticateWithCredential(user, credential);
 
       // تنفيذ إزالة الخصم
@@ -1051,8 +1051,8 @@ function App() {
   };
 
   // دالة تأكيد تعديل المصروفات/الإيرادات مع كلمة المرور
-  const confirmEditFinance = async () => {
-    if ((!pendingEditExpense && !pendingEditIncome) || !editFinancePassword.trim()) {
+  const confirmEditFinance = async (pwOverride?: string) => {
+    if ((!pendingEditExpense && !pendingEditIncome) || !(pwOverride ?? editFinancePassword).trim()) {
       setToastMessage('أدخل كلمة المرور');
       return;
     }
@@ -1066,7 +1066,7 @@ function App() {
         return;
       }
 
-      const credential = EmailAuthProvider.credential(user.email, editFinancePassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? editFinancePassword);
       await reauthenticateWithCredential(user, credential);
 
       // فتح modal التعديل
@@ -1116,13 +1116,13 @@ function App() {
     }
   };
 
-  const confirmDeleteCard = async () => {
-    if (!cardDeleteConfirm || !cardDeletePassword.trim()) { setToastMessage('أدخل كلمة المرور'); return; }
+  const confirmDeleteCard = async (pwOverride?: string) => {
+    if (!cardDeleteConfirm || !(pwOverride ?? cardDeletePassword).trim()) { setToastMessage('أدخل كلمة المرور'); return; }
     setCardDeleteLoading(true);
     try {
       const user = auth.currentUser;
       if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
-      const credential = EmailAuthProvider.credential(user.email, cardDeletePassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? cardDeletePassword);
       await reauthenticateWithCredential(user, credential);
       await deleteDoc(doc(db, 'cards', cardDeleteConfirm.id));
       setCards(cards.filter(c => c.id !== cardDeleteConfirm.id));
@@ -1257,8 +1257,8 @@ function App() {
   };
 
   // التحقق من كلمة مرور الحساب قبل فتح نافذة تعديل البرج
-  const confirmTowerEditPassword = async () => {
-    if (!pendingEditTower || !towerEditPassword.trim()) {
+  const confirmTowerEditPassword = async (pwOverride?: string) => {
+    if (!pendingEditTower || !(pwOverride ?? towerEditPassword).trim()) {
       setToastMessage('أدخل كلمة المرور');
       return;
     }
@@ -1266,7 +1266,7 @@ function App() {
     try {
       const user = auth.currentUser;
       if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
-      const credential = EmailAuthProvider.credential(user.email, towerEditPassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? towerEditPassword);
       await reauthenticateWithCredential(user, credential);
       setEditingTower({ ...pendingEditTower });
       setShowEditTowerModal(true);
@@ -1286,8 +1286,8 @@ function App() {
   };
 
   // التحقق من كلمة مرور الحساب قبل إزالة عميل من البرج
-  const confirmUnlinkCustomer = async () => {
-    if (!pendingUnlinkCustomer || !unlinkPassword.trim()) {
+  const confirmUnlinkCustomer = async (pwOverride?: string) => {
+    if (!pendingUnlinkCustomer || !(pwOverride ?? unlinkPassword).trim()) {
       setToastMessage('أدخل كلمة المرور');
       return;
     }
@@ -1295,7 +1295,7 @@ function App() {
     try {
       const user = auth.currentUser;
       if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
-      const credential = EmailAuthProvider.credential(user.email, unlinkPassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? unlinkPassword);
       await reauthenticateWithCredential(user, credential);
       await setCustomerTower(pendingUnlinkCustomer, '');
       setPendingUnlinkCustomer(null);
@@ -1327,13 +1327,13 @@ function App() {
     }
   };
 
-  const confirmDeleteTower = async () => {
-    if (!towerDeleteConfirm || !towerDeletePassword.trim()) { setToastMessage('أدخل كلمة المرور'); return; }
+  const confirmDeleteTower = async (pwOverride?: string) => {
+    if (!towerDeleteConfirm || !(pwOverride ?? towerDeletePassword).trim()) { setToastMessage('أدخل كلمة المرور'); return; }
     setTowerDeleteLoading(true);
     try {
       const user = auth.currentUser;
       if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
-      const credential = EmailAuthProvider.credential(user.email, towerDeletePassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? towerDeletePassword);
       await reauthenticateWithCredential(user, credential);
       await deleteDoc(doc(db, 'towers', towerDeleteConfirm.id));
       setToastMessage(`تم حذف البرج: ${towerDeleteConfirm.deviceName}`);
@@ -1657,8 +1657,8 @@ function App() {
   };
 
   // دالة تأكيد الحذف للمصروفات والإيرادات
-  const confirmFinanceDelete = async () => {
-    if (!financeDeleteConfirm || !financeDeletePassword.trim()) {
+  const confirmFinanceDelete = async (pwOverride?: string) => {
+    if (!financeDeleteConfirm || !(pwOverride ?? financeDeletePassword).trim()) {
       setToastMessage('أدخل كلمة المرور');
       return;
     }
@@ -1672,7 +1672,7 @@ function App() {
       }
 
       // التحقق من كلمة المرور
-      const credential = EmailAuthProvider.credential(user.email, financeDeletePassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? financeDeletePassword);
       await reauthenticateWithCredential(user, credential);
 
       // تنفيذ الحذف
@@ -1972,8 +1972,8 @@ function App() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteConfirm || !deletePassword.trim()) {
+  const confirmDelete = async (pwOverride?: string) => {
+    if (!deleteConfirm || !(pwOverride ?? deletePassword).trim()) {
       setToastMessage('أدخل كلمة المرور');
       return;
     }
@@ -1987,7 +1987,7 @@ function App() {
       }
 
       // التحقق من كلمة المرور
-      const credential = EmailAuthProvider.credential(user.email, deletePassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? deletePassword);
       await reauthenticateWithCredential(user, credential);
 
       // تنفيذ الحذف
@@ -2162,8 +2162,8 @@ function App() {
     setTransferModal(true);
   };
 
-  const confirmTransferCustomer = async () => {
-    if (!transferCustomer || !transferCityId || !transferPassword.trim()) {
+  const confirmTransferCustomer = async (pwOverride?: string) => {
+    if (!transferCustomer || !transferCityId || !(pwOverride ?? transferPassword).trim()) {
       setToastMessage('يرجى اختيار المدينة وإدخال كلمة المرور');
       return;
     }
@@ -2182,7 +2182,7 @@ function App() {
       }
 
       // التحقق من كلمة المرور
-      const credential = EmailAuthProvider.credential(user.email, transferPassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? transferPassword);
       await reauthenticateWithCredential(user, credential);
 
       // نقل العميل للمدينة الجديدة
@@ -2209,8 +2209,8 @@ function App() {
     }
   };
 
-  const confirmEditPassword = async () => {
-    if (!pendingEditCustomer || !editPassword.trim()) {
+  const confirmEditPassword = async (pwOverride?: string) => {
+    if (!pendingEditCustomer || !(pwOverride ?? editPassword).trim()) {
       setToastMessage('أدخل كلمة المرور');
       return;
     }
@@ -2223,7 +2223,7 @@ function App() {
         return;
       }
 
-      const credential = EmailAuthProvider.credential(user.email, editPassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? editPassword);
       await reauthenticateWithCredential(user, credential);
 
       // فتح نافذة التعديل
@@ -2666,6 +2666,40 @@ function App() {
     setToastMessage('تم إلغاء الدخول بالبصمة من هذا الجهاز');
   };
 
+  // جلب كلمة المرور المخزّنة عبر البصمة — بديل عن كتابتها يدوياً في النوافذ المحمية
+  const getBioPassword = async (): Promise<string | null> => {
+    if (!bioEnabled) { setToastMessage('فعّل الدخول بالبصمة أولاً من البروفايل'); return null; }
+    setBioBusy(true);
+    try {
+      const creds = await unlockBiometric();
+      if (!creds) { setToastMessage('لا توجد بصمة مسجّلة على هذا الجهاز'); return null; }
+      return creds.password;
+    } catch (e: any) {
+      if (e?.name === 'NotAllowedError') setToastMessage('أُلغيت عملية البصمة');
+      else if (e?.message === 'no-prf') setToastMessage('متصفحك لا يدعم البصمة الآمنة');
+      else setToastMessage('تعذّر التحقق بالبصمة');
+      console.error(e);
+      return null;
+    } finally {
+      setBioBusy(false);
+    }
+  };
+
+  // زر «تأكيد بالبصمة» — يُعرض داخل كل نافذة تطلب كلمة مرور الحساب
+  const bioConfirmBtn = (run: (pw: string) => void) => (
+    bioAvailable && bioEnabled ? (
+      <button
+        type="button"
+        className="btn bio-confirm-btn"
+        disabled={bioBusy}
+        title="تأكيد ببصمة الوجه بدل كتابة كلمة المرور"
+        onClick={async () => { const pw = await getBioPassword(); if (pw) run(pw); }}
+      >
+        {bioBusy ? '...' : '👆 بالبصمة'}
+      </button>
+    ) : null
+  );
+
   // إرسال رسالة نصية في الشات العام
   const sendChatMessage = async () => {
     const user = auth.currentUser;
@@ -2818,14 +2852,14 @@ function App() {
   };
 
   // تغيير البريد الإلكتروني (يرسل رابط تأكيد للبريد الجديد ثم يُحدَّث بعد الضغط عليه)
-  const saveProfileEmail = async () => {
+  const saveProfileEmail = async (pwOverride?: string) => {
     const user = auth.currentUser;
     if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
     if (!profileNewEmail.trim()) { setToastMessage('أدخل البريد الجديد'); return; }
-    if (!profileEmailPassword.trim()) { setToastMessage('أدخل كلمة المرور الحالية'); return; }
+    if (!(pwOverride ?? profileEmailPassword).trim()) { setToastMessage('أدخل كلمة المرور الحالية'); return; }
     setProfileEmailBusy(true);
     try {
-      const credential = EmailAuthProvider.credential(user.email, profileEmailPassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? profileEmailPassword);
       await reauthenticateWithCredential(user, credential);
       await verifyBeforeUpdateEmail(user, profileNewEmail.trim());
       setToastMessage('أُرسل رابط تأكيد إلى البريد الجديد — افتحه لإتمام التغيير');
@@ -2843,15 +2877,15 @@ function App() {
   };
 
   // تغيير كلمة المرور (يُلغي البصمة المحفوظة لأنها تعتمد على كلمة المرور القديمة)
-  const saveProfilePassword = async () => {
+  const saveProfilePassword = async (pwOverride?: string) => {
     const user = auth.currentUser;
     if (!user || !user.email) { setToastMessage('خطأ في المصادقة'); return; }
-    if (!profileCurrentPassword.trim() || !profileNewPassword.trim()) { setToastMessage('أدخل كلمة المرور الحالية والجديدة'); return; }
+    if (!(pwOverride ?? profileCurrentPassword).trim() || !profileNewPassword.trim()) { setToastMessage('أدخل كلمة المرور الحالية والجديدة'); return; }
     if (profileNewPassword.length < 6) { setToastMessage('كلمة المرور الجديدة قصيرة (٦ أحرف على الأقل)'); return; }
     if (profileNewPassword !== profileConfirmPassword) { setToastMessage('تأكيد كلمة المرور غير مطابق'); return; }
     setProfilePasswordBusy(true);
     try {
-      const credential = EmailAuthProvider.credential(user.email, profileCurrentPassword);
+      const credential = EmailAuthProvider.credential(user.email, pwOverride ?? profileCurrentPassword);
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, profileNewPassword);
       // كلمة المرور المخزّنة للبصمة أصبحت قديمة
@@ -3543,7 +3577,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => { setDeleteConfirm(null); setDeletePassword(''); }} className="btn secondary">إلغاء</button>
-              <button onClick={confirmDelete} className="btn danger" disabled={deleteLoading}>
+              {bioConfirmBtn(confirmDelete)}<button onClick={() => confirmDelete()} className="btn danger" disabled={deleteLoading}>
                 {deleteLoading ? 'جاري التحقق...' : 'تأكيد الحذف'}
               </button>
             </div>
@@ -3579,7 +3613,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => { setFinanceDeleteConfirm(null); setFinanceDeletePassword(''); }} className="btn secondary">إلغاء</button>
-              <button onClick={confirmFinanceDelete} className="btn danger" disabled={financeDeleteLoading}>
+              {bioConfirmBtn(confirmFinanceDelete)}<button onClick={() => confirmFinanceDelete()} className="btn danger" disabled={financeDeleteLoading}>
                 {financeDeleteLoading ? 'جاري التحقق...' : 'تأكيد الحذف'}
               </button>
             </div>
@@ -3617,7 +3651,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => { setDiscountDeleteConfirm(null); setDiscountDeletePassword(''); }} className="btn secondary">إلغاء</button>
-              <button onClick={confirmDiscountDelete} className="btn danger" disabled={discountDeleteLoading}>
+              {bioConfirmBtn(confirmDiscountDelete)}<button onClick={() => confirmDiscountDelete()} className="btn danger" disabled={discountDeleteLoading}>
                 {discountDeleteLoading ? 'جاري التحقق...' : 'تأكيد إزالة الخصم'}
               </button>
             </div>
@@ -3751,7 +3785,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => { setPendingEditExpense(null); setPendingEditIncome(null); setEditFinancePassword(''); }} className="btn secondary">إلغاء</button>
-              <button onClick={confirmEditFinance} className="btn primary" disabled={editFinanceLoading}>
+              {bioConfirmBtn(confirmEditFinance)}<button onClick={() => confirmEditFinance()} className="btn primary" disabled={editFinanceLoading}>
                 {editFinanceLoading ? 'جاري التحقق...' : 'تأكيد'}
               </button>
             </div>
@@ -3785,7 +3819,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => { setEditPasswordModal(false); setPendingEditCustomer(null); setEditPassword(''); }} className="btn secondary">إلغاء</button>
-              <button onClick={confirmEditPassword} className="btn primary" disabled={editLoading}>
+              {bioConfirmBtn(confirmEditPassword)}<button onClick={() => confirmEditPassword()} className="btn primary" disabled={editLoading}>
                 {editLoading ? 'جاري التحقق...' : 'متابعة'}
               </button>
             </div>
@@ -3819,7 +3853,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => { setTowerEditPasswordModal(false); setPendingEditTower(null); setTowerEditPassword(''); }} className="btn secondary">إلغاء</button>
-              <button onClick={confirmTowerEditPassword} className="btn primary" disabled={towerEditLoading}>
+              {bioConfirmBtn(confirmTowerEditPassword)}<button onClick={() => confirmTowerEditPassword()} className="btn primary" disabled={towerEditLoading}>
                 {towerEditLoading ? 'جاري التحقق...' : 'متابعة'}
               </button>
             </div>
@@ -5610,7 +5644,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => { setPendingUnlinkCustomer(null); setUnlinkPassword(''); }} className="btn secondary">إلغاء</button>
-              <button onClick={confirmUnlinkCustomer} className="btn danger" disabled={unlinkLoading}>
+              {bioConfirmBtn(confirmUnlinkCustomer)}<button onClick={() => confirmUnlinkCustomer()} className="btn danger" disabled={unlinkLoading}>
                 {unlinkLoading ? 'جاري التحقق...' : 'إزالة'}
               </button>
             </div>
@@ -5660,7 +5694,7 @@ function App() {
               <button onClick={() => setTransferModal(false)} className="btn secondary" disabled={transferLoading}>
                 إلغاء
               </button>
-              <button onClick={confirmTransferCustomer} className="btn primary" disabled={transferLoading}>
+              {bioConfirmBtn(confirmTransferCustomer)}<button onClick={() => confirmTransferCustomer()} className="btn primary" disabled={transferLoading}>
                 {transferLoading ? 'جاري النقل...' : 'تأكيد النقل'}
               </button>
             </div>
@@ -5693,7 +5727,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => setCardDeleteConfirm(null)} className="btn secondary">إلغاء</button>
-              <button onClick={confirmDeleteCard} className="btn danger" disabled={cardDeleteLoading}>
+              {bioConfirmBtn(confirmDeleteCard)}<button onClick={() => confirmDeleteCard()} className="btn danger" disabled={cardDeleteLoading}>
                 {cardDeleteLoading ? 'جاري الحذف...' : 'حذف'}
               </button>
             </div>
@@ -5789,7 +5823,7 @@ function App() {
             </div>
             <div className="modal-footer">
               <button onClick={() => setTowerDeleteConfirm(null)} className="btn secondary">إلغاء</button>
-              <button onClick={confirmDeleteTower} className="btn danger" disabled={towerDeleteLoading}>
+              {bioConfirmBtn(confirmDeleteTower)}<button onClick={() => confirmDeleteTower()} className="btn danger" disabled={towerDeleteLoading}>
                 {towerDeleteLoading ? 'جاري الحذف...' : 'حذف'}
               </button>
             </div>
@@ -5908,7 +5942,7 @@ function App() {
                   <input type={showProfileEmailPw ? 'text' : 'password'} value={profileEmailPassword} onChange={(e) => setProfileEmailPassword(e.target.value)} placeholder="كلمة المرور الحالية للتأكيد" />
                   <button type="button" className="password-eye" onClick={() => setShowProfileEmailPw(v => !v)} title={showProfileEmailPw ? 'إخفاء' : 'إظهار'} tabIndex={-1}>{showProfileEmailPw ? '🙈' : '👁️'}</button>
                 </div>
-                <button className="btn primary profile-full-btn" onClick={saveProfileEmail} disabled={profileEmailBusy}>
+                {bioConfirmBtn(saveProfileEmail)}<button className="btn primary profile-full-btn" onClick={() => saveProfileEmail()} disabled={profileEmailBusy}>
                   {profileEmailBusy ? 'جارٍ الإرسال...' : 'تغيير البريد'}
                 </button>
                 <p className="small" style={{ opacity: 0.6, margin: '8px 0 0' }}>سيُرسل رابط تأكيد إلى البريد الجديد، ويُحدَّث بعد فتحه.</p>
@@ -5945,7 +5979,7 @@ function App() {
                   <input type={showProfileConfPw ? 'text' : 'password'} value={profileConfirmPassword} onChange={(e) => setProfileConfirmPassword(e.target.value)} placeholder="تأكيد كلمة المرور الجديدة" />
                   <button type="button" className="password-eye" onClick={() => setShowProfileConfPw(v => !v)} title={showProfileConfPw ? 'إخفاء' : 'إظهار'} tabIndex={-1}>{showProfileConfPw ? '🙈' : '👁️'}</button>
                 </div>
-                <button className="btn primary profile-full-btn" onClick={saveProfilePassword} disabled={profilePasswordBusy}>
+                {bioConfirmBtn(saveProfilePassword)}<button className="btn primary profile-full-btn" onClick={() => saveProfilePassword()} disabled={profilePasswordBusy}>
                   {profilePasswordBusy ? 'جارٍ التغيير...' : 'تغيير كلمة المرور'}
                 </button>
                 {bioEnabled && <p className="small" style={{ opacity: 0.6, margin: '8px 0 0' }}>ملاحظة: تغيير كلمة المرور سيُلغي الدخول بالبصمة على هذا الجهاز، فأعد تفعيله بعدها.</p>}
