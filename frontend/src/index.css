@@ -6956,6 +6956,37 @@ textarea {
   .chat-download-btn { opacity: 1; }
 }
 
+/* شريط «حفظ في الجهاز» بعد تجهيز الملف (iOS) */
+.chat-save-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(37, 211, 102, 0.4);
+  background: rgba(37, 211, 102, 0.12);
+}
+.chat-save-text { flex: 1; font-size: 12px; font-weight: 700; color: var(--text); }
+.chat-save-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px;
+  background: #25d366;
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chat-save-close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  opacity: 0.6;
+  padding: 4px 6px;
+}
+
 /* شريط تقدّم الرفع */
 .chat-upload-progress {
   padding: 10px 14px;

@@ -115,44 +115,40 @@ const fileIcon = (name?: string): string => {
 
 const isMobileDevice = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
-// تحميل ملف/وسائط بأفضل طريقة متاحة:
-// على الجوال ← مشاركة النظام الأصلية (حفظ في الملفات/الصور)، ثم تحميل blob، وأخيراً فتح الرابط
-const downloadFile = async (url: string, name: string): Promise<void> => {
-  const fallbackOpen = () => window.open(url, '_blank');
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('fetch failed');
-    const blob = await res.blob();
-    const fileName = name || 'file';
+// iOS لا يعرض «حفظ الفيديو/الصورة» إلا إذا عرف النوع من الـ MIME والامتداد
+const MIME_EXT: Record<string, string> = {
+  'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/heic': 'heic',
+};
 
-    // 1) الجوال: مشاركة أصلية تتيح «حفظ في الملفات» أو «حفظ الصورة»
-    const nav = navigator as any;
-    if (isMobileDevice() && nav.canShare) {
-      try {
-        const f = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
-        if (nav.canShare({ files: [f] })) {
-          await nav.share({ files: [f], title: fileName });
-          return;
-        }
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return; // المستخدم ألغى المشاركة
-        // غير ذلك: نكمل للطريقة التالية
-      }
-    }
-
-    // 2) تحميل مباشر عبر رابط blob
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objUrl;
-    a.download = fileName;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
-  } catch {
-    fallbackOpen(); // بديل أخير (يعمل دائماً)
+// تجهيز الملف باسم وامتداد ونوع صحيح — شرط أساسي لظهور «حفظ في الصور» على iOS
+const prepareFile = async (url: string, name: string, kind?: 'image' | 'video' | 'file'): Promise<File | null> => {
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  let type = blob.type;
+  if (!type || type === 'application/octet-stream') {
+    type = kind === 'video' ? 'video/mp4' : kind === 'image' ? 'image/jpeg' : 'application/octet-stream';
   }
+  let fileName = name || 'file';
+  if (!/\.[a-z0-9]{2,5}$/i.test(fileName)) {
+    const ext = MIME_EXT[type] || (kind === 'video' ? 'mp4' : kind === 'image' ? 'jpg' : '');
+    if (ext) fileName = `${fileName}.${ext}`;
+  }
+  return new File([blob], fileName, { type });
+};
+
+// تحميل مباشر عبر رابط blob (الحواسيب)
+const anchorDownload = (file: File) => {
+  const objUrl = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = file.name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
 };
 
 type TowerStatus = 'working' | 'not-working' | 'cancelled';
@@ -403,6 +399,7 @@ function App() {
   const [chatUploadProgress, setChatUploadProgress] = useState(0); // نسبة تقدّم الرفع %
   const [chatUploadName, setChatUploadName] = useState(''); // اسم الملف الجاري رفعه
   const [chatDownloadingId, setChatDownloadingId] = useState<string | null>(null); // الرسالة الجاري تحميل مرفقها
+  const [pendingSave, setPendingSave] = useState<{ file: File; url: string } | null>(null); // ملف جاهز ينتظر لمسة للحفظ (iOS)
 
   // تعليم رسائل الشات كمقروءة للحساب الحالي
   const markChatRead = () => {
@@ -2839,14 +2836,43 @@ function App() {
     }
   };
 
-  // تحميل مرفق رسالة مع إظهار حالة «جارٍ التحميل»
+  // تحميل مرفق رسالة — على الجوال يفتح قائمة النظام لحفظه في الصور/الملفات
   const handleDownload = async (m: ChatMessage, fallbackName: string) => {
     if (!m.mediaUrl) return;
+    const url = m.mediaUrl;
     setChatDownloadingId(m.id);
     try {
-      await downloadFile(m.mediaUrl, m.fileName || fallbackName);
+      const file = await prepareFile(url, m.fileName || fallbackName, m.mediaType);
+      if (!file) { window.open(url, '_blank'); return; }
+      const nav = navigator as any;
+      if (isMobileDevice() && nav.canShare?.({ files: [file] })) {
+        try {
+          await nav.share({ files: [file], title: file.name });
+        } catch (err: any) {
+          if (err?.name === 'AbortError') return; // ألغى المستخدم
+          // Safari يُبطل إيماءة اللمس بعد الجلب ⇒ اعرض زر حفظ بلمسة جديدة
+          setPendingSave({ file, url });
+        }
+        return;
+      }
+      anchorDownload(file);
+    } catch {
+      window.open(url, '_blank');
     } finally {
       setChatDownloadingId(null);
+    }
+  };
+
+  // حفظ الملف المجهّز بلمسة جديدة (يحل مشكلة انتهاء صلاحية الإيماءة على iOS)
+  const savePendingFile = async () => {
+    if (!pendingSave) return;
+    const nav = navigator as any;
+    try {
+      await nav.share({ files: [pendingSave.file], title: pendingSave.file.name });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') window.open(pendingSave.url, '_blank');
+    } finally {
+      setPendingSave(null);
     }
   };
 
@@ -6085,6 +6111,13 @@ function App() {
               )}
               <div ref={chatEndRef} />
             </div>
+            {pendingSave && (
+              <div className="chat-save-bar">
+                <span className="chat-save-text">الملف جاهز — اضغط للحفظ في جهازك</span>
+                <button className="chat-save-btn" onClick={savePendingFile}>💾 حفظ في الجهاز</button>
+                <button className="chat-save-close" onClick={() => setPendingSave(null)}>✕</button>
+              </div>
+            )}
             {chatUploading && (
               <div className="chat-upload-progress">
                 <div className="chat-upload-head">
