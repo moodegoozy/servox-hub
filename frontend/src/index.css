@@ -6858,6 +6858,35 @@ textarea {
 [data-theme="dark"] .wa-status-btn,
 [data-theme="dark"] .wa-amount-row input { background: rgba(15, 23, 42, 0.6); border-color: var(--border); }
 
+/* فلتر الشهر في تبويب واتساب */
+.wa-month-toolbar { align-items: center; }
+.wa-month-label { font-weight: 800; font-size: 13px; white-space: nowrap; }
+.wa-month-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: #128c7e;
+  background: rgba(37, 211, 102, 0.12);
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+/* العملاء الموقوفون مؤقتاً — لا يُرسل لهم */
+.wa-row.suspended { opacity: 0.6; border-style: dashed; background: rgba(239, 68, 68, 0.06); }
+.wa-suspended-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--danger-text, #b91c1c);
+  background: var(--danger-bg, rgba(239, 68, 68, 0.12));
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.wa-suspended-note { color: var(--danger-text, #b91c1c); font-weight: 700; }
+
+[data-theme="dark"] .wa-month-hint { background: rgba(37, 211, 102, 0.18); color: #4ade80; }
+[data-theme="dark"] .wa-row.suspended { background: rgba(239, 68, 68, 0.1); }
+
 @media (max-width: 720px) {
   .wa-list { grid-template-columns: 1fr; }
 }
