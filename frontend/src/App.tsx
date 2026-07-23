@@ -325,6 +325,7 @@ function App() {
   const [waQueuePos, setWaQueuePos] = useState(0);
   const [waMonth, setWaMonth] = useState(0); // 0 = الحالة العامة، 1-12 = شهر محدد
   const [waYear, setWaYear] = useState(new Date().getFullYear());
+  const [waSearch, setWaSearch] = useState(''); // بحث بالاسم أو الجوال أو IP
   // الشات العام بين حسابات الإدارة
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [showChat, setShowChat] = useState(false);
@@ -5451,8 +5452,18 @@ function App() {
             if (waStatusFilter === 'all') return true;
             return statusOf(c) === waStatusFilter;
           };
+          // بحث بالاسم أو رقم الجوال أو IP Number أو اسم المستخدم
+          const q = waSearch.trim().toLowerCase();
+          const qDigits = q.replace(/\D/g, '');
+          const searchMatch = (c: Customer) => {
+            if (!q) return true;
+            return c.name.toLowerCase().includes(q)
+              || (!!qDigits && !!c.phone && c.phone.replace(/\D/g, '').includes(qDigits))
+              || (!!c.ipNumber && c.ipNumber.toLowerCase().includes(q))
+              || (!!c.userName && c.userName.toLowerCase().includes(q));
+          };
           const waCustomers = customers
-            .filter(c => (!waCityId || c.cityId === waCityId) && statusMatch(c))
+            .filter(c => (!waCityId || c.cityId === waCityId) && statusMatch(c) && searchMatch(c))
             .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
           const selectedSet = new Set(waSelected);
           const templateBody = waTemplateId === 'custom' ? waCustomTemplate : (WA_TEMPLATES.find(t => t.id === waTemplateId)?.body || '');
@@ -5519,6 +5530,17 @@ function App() {
 
             {/* الفلاتر */}
             <div className="wa-toolbar">
+              <div className="cards-search-wrapper wa-search">
+                <span className="cards-search-icon">🔍</span>
+                <input
+                  type="text"
+                  className="cards-search-input"
+                  placeholder="ابحث بالاسم أو رقم الجوال أو IP Number..."
+                  value={waSearch}
+                  onChange={(e) => setWaSearch(e.target.value)}
+                />
+                {waSearch && <button className="cards-search-clear" onClick={() => setWaSearch('')}>✕</button>}
+              </div>
               <select className="cards-select" value={waCityId ?? ''} onChange={(e) => { setWaCityId(e.target.value || null); setWaSelected([]); }}>
                 <option value="">كل المدن</option>
                 {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

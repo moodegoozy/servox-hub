@@ -6858,6 +6858,9 @@ textarea {
 [data-theme="dark"] .wa-status-btn,
 [data-theme="dark"] .wa-amount-row input { background: rgba(15, 23, 42, 0.6); border-color: var(--border); }
 
+/* بحث تبويب واتساب */
+.wa-search { flex: 1; min-width: 240px; }
+
 /* فلتر الشهر في تبويب واتساب */
 .wa-month-toolbar { align-items: center; }
 .wa-month-label { font-weight: 800; font-size: 13px; white-space: nowrap; }
