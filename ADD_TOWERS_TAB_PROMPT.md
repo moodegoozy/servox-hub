@@ -1611,6 +1611,69 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'yearly' |
 
 > لا حاجة لتعديل `firestore.rules` لهذه الخطوة: الميزة تكتب فقط حقل `towerId` على مستندات `customers` الموجودة (قواعدها موجودة أصلاً).
 
+### 12.12 — بحث موسّع + عرض معلومات العميل من التبويب
+
+**أ) البحث في الأبراج يشمل بيانات العملاء**
+**نقطة الربط:** في فلترة تبويب الأبراج، استبدل شرط البحث بالتالي (يضيف مطابقة اسم العميل و IP واسم المستخدم):
+
+```ts
+          if (towerSearch.trim()) {
+            const q = towerSearch.trim().toLowerCase();
+            list = list.filter(t =>
+              t.deviceName.toLowerCase().includes(q) ||
+              (t.ipNumber && t.ipNumber.toLowerCase().includes(q)) ||
+              (t.towerNumber && t.towerNumber.toLowerCase().includes(q)) ||
+              // البحث بأسماء العملاء المرتبطين بالبرج أو الـ IP أو اسم المستخدم
+              customers.some(c => c.towerId === t.id && (
+                c.name.toLowerCase().includes(q) ||
+                (c.ipNumber && c.ipNumber.toLowerCase().includes(q)) ||
+                (c.userName && c.userName.toLowerCase().includes(q))
+              ))
+            );
+          }
+```
+
+وحدّث نص حقل البحث إلى: `placeholder="ابحث بالبرج أو باسم العميل أو IP العميل..."`
+
+**ب) الضغط على العميل يعرض معلوماته الكاملة**
+في **نافذة مستخدمي البرج** وفي **قائمة انتظار التعيين**، اجعل كتلة بيانات العميل قابلة للنقر:
+
+```tsx
+{/* داخل نافذة مستخدمي البرج */}
+<div className="tower-user-info tower-user-info-clickable" onClick={() => openCustomerDetails(c)} title="عرض معلومات العميل الكاملة">
+  <strong>{c.name} <span className="tower-user-info-hint">ℹ️</span></strong>
+  ...
+</div>
+
+{/* داخل قائمة انتظار التعيين */}
+<div className="tower-queue-info tower-user-info-clickable" onClick={() => openCustomerDetails(c)} title="عرض معلومات العميل الكاملة">
+  <strong>{c.name} <span className="tower-user-info-hint">ℹ️</span></strong>
+  ...
+</div>
+```
+
+**ج) ترتيب النوافذ المتراكبة (مهم)**
+نافذة «معلومات العميل» تُعرَّف في الـ JSX **قبل** نافذة مستخدمي البرج، فتظهر خلفها. أضِف لها صنفاً برقم z أعلى:
+
+```tsx
+{showCustomerModal && selectedCustomer && (
+  <div className="modal-overlay modal-overlay-top" onClick={() => setShowCustomerModal(false)}>
+```
+
+**د) التنسيقات** — أضِفها إلى `index.css`:
+
+```css
+.tower-user-info-clickable { cursor: pointer; border-radius: 8px; padding: 4px 6px; margin: -4px -6px; transition: background 0.15s; }
+.tower-user-info-clickable:hover { background: var(--primary-glow, #eef2ff); }
+.tower-user-info-hint { font-size: 12px; opacity: 0.7; }
+[data-theme="dark"] .tower-user-info-clickable:hover { background: rgba(99, 102, 241, 0.18); }
+
+/* نافذة تظهر فوق نافذة أخرى (معلومات العميل فوق نافذة البرج) */
+.modal-overlay-top { z-index: 1100; }
+
+.tower-queue-notower { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--danger-text, #b91c1c); opacity: 0.85; white-space: nowrap; }
+```
+
 ---
 
 ## الخطوة 13 — التحقق والبناء والنشر
@@ -1650,4 +1713,6 @@ firebase deploy --only hosting --project <PROJECT_ID>
 - **إزالة مستخدم من البرج محمية بكلمة مرور الحساب** (إعادة مصادقة).
 - أسفل تبويب الأبراج "🕒 قائمة انتظار تعيين برج" تعرض العملاء بلا برج؛ مفلترة بمدينة الفلتر، وخيارات التعيين محصورة بأبراج مدينة العميل، وإن لم توجد أبراج في مدينته تظهر "لا أبراج في مدينته".
 - **التعيين يدوي بالكامل — لا يوجد ربط أوتوماتيكي حسب المدينة.**
+- البحث في التبويب يطابق بيانات البرج **وأسماء العملاء و IP واسم المستخدم**، فيظهر البرج التابع له العميل.
+- الضغط على أي عميل (سواء المرتبط ببرج أو في قائمة الانتظار) يفتح **نافذة معلوماته الكاملة** فوق النافذة الحالية.
 ```
