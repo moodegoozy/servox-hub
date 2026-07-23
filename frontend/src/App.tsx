@@ -376,6 +376,7 @@ function App() {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatCleanupDone = useRef(false); // يضمن تشغيل التنظيف مرة واحدة لكل جلسة
   const [chatLastRead, setChatLastRead] = useState(0); // آخر وقت قراءة للشات — مستقل لكل حساب
+  const [chatDeleteConfirm, setChatDeleteConfirm] = useState<ChatMessage | null>(null); // تأكيد حذف رسالة
 
   // تعليم رسائل الشات كمقروءة للحساب الحالي
   const markChatRead = () => {
@@ -2800,6 +2801,25 @@ function App() {
       console.error(e);
     } finally {
       setChatUploading(false);
+    }
+  };
+
+  // حذف رسالة أرسلها المستخدم نفسه (مع ملف الوسائط إن وُجد)
+  const deleteChatMessage = async (m: ChatMessage) => {
+    try {
+      if (m.mediaUrl || m.mediaPath) {
+        try {
+          await deleteObject(storageRef(storage, m.mediaPath || m.mediaUrl!));
+        } catch (err) {
+          console.warn('تعذّر حذف ملف الوسائط (قد يكون محذوفاً مسبقاً)', err);
+        }
+      }
+      await deleteDoc(doc(db, 'chat', m.id));
+      setChatDeleteConfirm(null);
+      setToastMessage('تم حذف الرسالة');
+    } catch (e) {
+      setToastMessage('تعذّر حذف الرسالة');
+      console.error(e);
     }
   };
 
@@ -5988,13 +6008,24 @@ function App() {
                       )}
                       <div className="chat-msg-footer">
                         <span className="chat-msg-time">{new Date(m.createdAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</span>
-                        <button
-                          className={`chat-pin-btn ${m.pinned ? 'active' : ''}`}
-                          onClick={() => toggleChatPin(m)}
-                          title={m.pinned ? 'إلغاء التثبيت (ستُحذف بعد ٣ أشهر)' : 'تثبيت الرسالة (تمنع حذفها التلقائي)'}
-                        >
-                          📌
-                        </button>
+                        <span className="chat-msg-actions">
+                          <button
+                            className={`chat-pin-btn ${m.pinned ? 'active' : ''}`}
+                            onClick={() => toggleChatPin(m)}
+                            title={m.pinned ? 'إلغاء التثبيت (ستُحذف بعد ٣ أشهر)' : 'تثبيت الرسالة (تمنع حذفها التلقائي)'}
+                          >
+                            📌
+                          </button>
+                          {mine && (
+                            <button
+                              className="chat-del-btn"
+                              onClick={() => setChatDeleteConfirm(m)}
+                              title="حذف رسالتي"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </span>
                       </div>
                     </div>
                   );
@@ -6017,6 +6048,29 @@ function App() {
                 disabled={chatUploading}
               />
               <button className="chat-send" onClick={sendChatMessage} disabled={!chatInput.trim() || chatUploading}>إرسال</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Delete Confirm — تأكيد حذف رسالة */}
+      {chatDeleteConfirm && (
+        <div className="modal-overlay modal-overlay-top" onClick={() => setChatDeleteConfirm(null)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>حذف الرسالة</h3>
+              <button onClick={() => setChatDeleteConfirm(null)} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text">
+                هل تريد حذف هذه الرسالة نهائياً؟
+                {chatDeleteConfirm.text && <><br /><strong className="chat-del-preview">«{chatDeleteConfirm.text.slice(0, 80)}{chatDeleteConfirm.text.length > 80 ? '…' : ''}»</strong></>}
+                {chatDeleteConfirm.mediaUrl && <><br /><small style={{ opacity: 0.7 }}>سيُحذف الملف المرفق أيضاً.</small></>}
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setChatDeleteConfirm(null)} className="btn secondary">إلغاء</button>
+              <button onClick={() => deleteChatMessage(chatDeleteConfirm)} className="btn danger">حذف</button>
             </div>
           </div>
         </div>

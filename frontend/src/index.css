@@ -7011,6 +7011,24 @@ textarea {
 .chat-pin-btn:hover { opacity: 0.8; filter: grayscale(0); background: rgba(245, 158, 11, 0.15); }
 .chat-pin-btn.active { opacity: 1; filter: grayscale(0); }
 
+.chat-msg-actions { display: flex; align-items: center; gap: 2px; }
+
+.chat-del-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  opacity: 0.35;
+  filter: grayscale(1);
+  transition: opacity 0.15s, filter 0.15s, background 0.15s;
+}
+.chat-del-btn:hover { opacity: 1; filter: grayscale(0); background: rgba(239, 68, 68, 0.15); }
+
+.chat-del-preview { display: inline-block; margin-top: 8px; color: var(--text-light); font-weight: 700; }
+
 [data-theme="dark"] .chat-pinned-badge { color: #fbbf24; background: rgba(245, 158, 11, 0.2); }
 
 /* ===== الشات العام ===== */
