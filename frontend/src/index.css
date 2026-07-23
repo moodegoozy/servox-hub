@@ -6887,6 +6887,24 @@ textarea {
 }
 .wa-suspended-note { color: var(--danger-text, #b91c1c); font-weight: 700; }
 
+/* من فاتورته صفر — لا مبلغ مستحق فلا يُرسل له */
+.wa-row.zero-invoice { opacity: 0.65; border-style: dashed; background: rgba(100, 116, 139, 0.08); }
+.wa-zero-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+  background: rgba(100, 116, 139, 0.15);
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.wa-zero-note { color: #475569; font-weight: 700; }
+
+[data-theme="dark"] .wa-row.zero-invoice { background: rgba(100, 116, 139, 0.12); }
+[data-theme="dark"] .wa-zero-badge { color: #cbd5e1; background: rgba(100, 116, 139, 0.25); }
+[data-theme="dark"] .wa-zero-note { color: #cbd5e1; }
+
 [data-theme="dark"] .wa-month-hint { background: rgba(37, 211, 102, 0.18); color: #4ade80; }
 [data-theme="dark"] .wa-row.suspended { background: rgba(239, 68, 68, 0.1); }
 

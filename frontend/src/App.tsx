@@ -5587,8 +5587,18 @@ function App() {
             }
             return c.paymentStatus === 'paid' ? 'paid' : c.paymentStatus === 'partial' ? 'partial' : c.paymentStatus === 'discounted' ? 'discounted' : 'unpaid';
           };
+          // المبلغ الفعلي للعميل: المبلغ الموحّد إن كُتب، وإلا قيمة اشتراكه
+          const amountOf = (c: Customer): number => {
+            const override = parseFloat(waAmount.trim());
+            if (waAmount.trim() && !isNaN(override)) return override;
+            return c.subscriptionValue ?? 0;
+          };
+          // فاتورته صفر ⇒ لا شيء عليه، فلا يُعتبر «سدد» ولا يُرسل له
+          const isZeroInvoice = (c: Customer) => amountOf(c) <= 0;
           const statusMatch = (c: Customer) => {
             if (waStatusFilter === 'all') return true;
+            // من فاتورته صفر لا يظهر ضمن «سدد»
+            if (waStatusFilter === 'paid' && isZeroInvoice(c)) return false;
             return statusOf(c) === waStatusFilter;
           };
           // بحث بالاسم أو رقم الجوال أو IP Number أو اسم المستخدم
@@ -5613,12 +5623,14 @@ function App() {
           };
           const waLink = (c: Customer) => `https://wa.me/${normalizePhone(c.phone)}?text=${encodeURIComponent(buildMsg(c))}`;
           const toggleOne = (id: string) => setWaSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-          // العملاء الموقوفون مؤقتاً لا يُرسَل لهم حتى يُرفع الإيقاف
-          const sendableIds = waCustomers.filter(c => !c.isSuspended).map(c => c.id);
+          // لا يُرسَل للموقوفين مؤقتاً ولا لمن فاتورته صفر
+          const isBlocked = (c: Customer) => !!c.isSuspended || isZeroInvoice(c);
+          const sendableIds = waCustomers.filter(c => !isBlocked(c)).map(c => c.id);
           const allSelected = sendableIds.length > 0 && sendableIds.every(id => selectedSet.has(id));
           const toggleAll = () => setWaSelected(allSelected ? [] : sendableIds);
-          const selectedCustomers = waCustomers.filter(c => selectedSet.has(c.id) && !c.isSuspended);
+          const selectedCustomers = waCustomers.filter(c => selectedSet.has(c.id) && !isBlocked(c));
           const suspendedCount = waCustomers.filter(c => c.isSuspended).length;
+          const zeroCount = waCustomers.filter(c => !c.isSuspended && isZeroInvoice(c)).length;
           const queueActive = waQueue.length > 0 && waQueuePos < waQueue.length;
           const startQueue = () => {
             const ids = selectedCustomers.map(c => c.id);
@@ -5737,6 +5749,7 @@ function App() {
                   <span className="wa-selected-count">
                     المحدد: {selectedCustomers.length}
                     {suspendedCount > 0 && <span className="wa-suspended-note"> • {suspendedCount} موقوف مؤقتاً (لا يُرسل لهم)</span>}
+                    {zeroCount > 0 && <span className="wa-zero-note"> • {zeroCount} فاتورته 0 (لا يُرسل لهم)</span>}
                   </span>
                 </div>
                 <div className="wa-list">
@@ -5744,17 +5757,21 @@ function App() {
                     const cityName = cities.find(ct => ct.id === c.cityId)?.name || '—';
                     const hasPhone = !!normalizePhone(c.phone);
                     const suspended = !!c.isSuspended;
+                    const zeroInvoice = !suspended && isZeroInvoice(c);
+                    const blocked = suspended || zeroInvoice;
                     return (
-                      <div key={c.id} className={`wa-row ${selectedSet.has(c.id) && !suspended ? 'selected' : ''} ${suspended ? 'suspended' : ''}`}>
+                      <div key={c.id} className={`wa-row ${selectedSet.has(c.id) && !blocked ? 'selected' : ''} ${suspended ? 'suspended' : ''} ${zeroInvoice ? 'zero-invoice' : ''}`}>
                         <label className="wa-checkbox-label">
-                          <input type="checkbox" checked={selectedSet.has(c.id) && !suspended} onChange={() => toggleOne(c.id)} disabled={suspended} />
+                          <input type="checkbox" checked={selectedSet.has(c.id) && !blocked} onChange={() => toggleOne(c.id)} disabled={blocked} />
                         </label>
                         <div className="wa-row-info">
-                          <strong>{suspended && '⛔ '}{c.name}</strong>
+                          <strong>{suspended && '⛔ '}{zeroInvoice && '🚫 '}{c.name}</strong>
                           <span className="small">{cityName} • {c.phone || 'بدون جوال'}</span>
                         </div>
                         {suspended ? (
                           <span className="wa-suspended-badge" title="لا يمكن الإرسال حتى يُرفع الإيقاف المؤقت">موقوف مؤقتاً</span>
+                        ) : zeroInvoice ? (
+                          <span className="wa-zero-badge" title="لا يوجد مبلغ مستحق — لا يُرسل له">فاتورته 0</span>
                         ) : hasPhone ? (
                           <a className="wa-send-btn" href={waLink(c)} target="_blank" rel="noopener noreferrer">📱 إرسال</a>
                         ) : (
