@@ -196,20 +196,16 @@ const WA_TEMPLATES: { id: string; title: string; body: string }[] = [
 ];
 const WA_CUSTOM_KEY = 'servox_wa_custom_template';
 
-// عنوان الباك-إند (بروكسي واتساب يحمل المفتاح)
-const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
-
-// إرسال رسالة واتساب عبر الباك-إند (المفتاح يبقى في الخادم)
-const sendWhatsApp = async (number: string, message: string): Promise<boolean> => {
+// إرسال رسالة واتساب مباشرة عبر بوابة whatsbot (بدون خادم).
+// المفتاح والمثيل يُقرآن من الإعدادات (Firestore المحمي بتسجيل الدخول)، لا من الكود.
+// نستخدم GET + mode:'no-cors' لتجاوز حاجز CORS (إرسال دون قراءة الرد).
+const sendWhatsApp = async (number: string, message: string, token?: string, instance?: string): Promise<boolean> => {
   const n = normalizePhone(number);
-  if (!n || !message.trim()) return false;
+  if (!n || !message.trim() || !token || !instance) return false;
+  const url = `https://whatsbot.at/api/send?number=${encodeURIComponent(n)}&type=text&message=${encodeURIComponent(message)}&instance_id=${encodeURIComponent(instance)}&access_token=${encodeURIComponent(token)}`;
   try {
-    const res = await fetch(`${BACKEND_BASE}/whatsapp/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number: n, message }),
-    });
-    return res.ok;
+    await fetch(url, { mode: 'no-cors' });
+    return true;
   } catch (e) {
     console.error('whatsapp send failed', e);
     return false;
@@ -219,6 +215,8 @@ const sendWhatsApp = async (number: string, message: string): Promise<boolean> =
 // قوالب الأتمتة الافتراضية (تُخزّن قابلة للتعديل في app_settings/whatsapp)
 const WA_AUTO_DEFAULTS = {
   enabled: false,
+  waToken: '',    // مفتاح whatsbot — يُدخل مرة في الإعدادات (Firestore)
+  waInstance: '', // معرّف المثيل
   reminderText: 'مرحباً {الاسم} 👋\nنذكّركم بسداد اشتراك الإنترنت بمبلغ {المبلغ} ﷼ لمدينة {المدينة}.\nSERVOX لخدمات الإنترنت السريع 🌐',
   thanksText: 'شكراً لك {الاسم} 🌟\nتم استلام سداد اشتراككم بنجاح. نشكر ثقتكم بـ SERVOX لخدمات الإنترنت السريع 🌐',
   invoiceText: 'عميلنا العزيز {الاسم} ({المدينة})\nصدرت فاتورة اشتراك هذا الشهر بمبلغ {المبلغ} ﷼.\nنرجو السداد، وشكراً لتعاونكم — SERVOX 🌐',
@@ -418,8 +416,8 @@ function App() {
   const [waSearch, setWaSearch] = useState('');
   // أتمتة واتساب (التذكير اليومي + شكر السداد + فواتير ٢٧)
   const [waAuto, setWaAuto] = useState<WaAutoConfig>(WA_AUTO_DEFAULTS);
-  const [waBackendReady, setWaBackendReady] = useState<boolean | null>(null);
   const [waAutoBusy, setWaAutoBusy] = useState('');
+  const waConfigured = !!(waAuto.waToken && waAuto.waInstance); // المفتاح والمثيل مُدخلان
   const waAutoRan = useRef(false); // يمنع تشغيل الفحص التلقائي أكثر من مرة لكل جلسة // بحث بالاسم أو الجوال أو IP
   // الشات العام بين حسابات الإدارة
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -1911,11 +1909,6 @@ function App() {
     };
   }, [isAuthenticated]);
 
-  // فحص تهيئة الباك-إند لواتساب مرة واحدة
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    fetch(`${BACKEND_BASE}/whatsapp/status`).then(r => r.json()).then(d => setWaBackendReady(!!d.configured)).catch(() => setWaBackendReady(false));
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -2252,7 +2245,7 @@ function App() {
       if (finalStatus === 'paid' && waAuto.enabled && confirmStatusChange.customer.phone) {
         const cust = confirmStatusChange.customer;
         const cityName = cities.find(ct => ct.id === cust.cityId)?.name || '';
-        sendWhatsApp(cust.phone!, fillTemplate(waAuto.thanksText, { name: cust.name, city: cityName, phone: cust.phone || '', amount: String(subscriptionValue || '') }));
+        sendWhatsApp(cust.phone!, fillTemplate(waAuto.thanksText, { name: cust.name, city: cityName, phone: cust.phone || '', amount: String(subscriptionValue || '') }), waAuto.waToken, waAuto.waInstance);
       }
 
       const statusMap: Record<string, string> = { paid: 'مدفوع', unpaid: 'غير مسدد', partial: 'جزئي', discounted: 'مدفوع بخصم' };
@@ -2276,7 +2269,7 @@ function App() {
   const sendWaBatch = async (targets: { phone: string; msg: string }[]) => {
     let sent = 0;
     for (const t of targets) {
-      if (await sendWhatsApp(t.phone, t.msg)) sent++;
+      if (await sendWhatsApp(t.phone, t.msg, waAuto.waToken, waAuto.waInstance)) sent++;
       await new Promise(r => setTimeout(r, 1500));
     }
     return sent;
@@ -2288,6 +2281,7 @@ function App() {
   // تذكير اليوم: العملاء غير المسددين (الشهر الحالي) — استثناء الموقوف وفاتورته صفر وبلا جوال
   const runDailyReminders = async (manual = false) => {
     if (!waAuto.enabled && !manual) return;
+    if (!waConfigured) { if (manual) setToastMessage('أدخل مفتاح واتساب والمثيل في الإعدادات أولاً'); return; }
     const targets = customers
       .filter(c => !c.isSuspended && !!normalizePhone(c.phone) && (c.subscriptionValue ?? 0) > 0 && (!c.paymentStatus || c.paymentStatus === 'unpaid'))
       .map(c => ({ phone: c.phone!, msg: fillTemplate(waAuto.reminderText, { name: c.name, city: waCityName(c), phone: c.phone || '', amount: waAmountFor(c) }) }));
@@ -2302,6 +2296,7 @@ function App() {
   // فواتير يوم ٢٧: للجميع عدا فاتورته صفر (والموقوف وبلا جوال)
   const runMonthlyInvoices = async (manual = false) => {
     if (!waAuto.enabled && !manual) return;
+    if (!waConfigured) { if (manual) setToastMessage('أدخل مفتاح واتساب والمثيل في الإعدادات أولاً'); return; }
     const targets = customers
       .filter(c => !c.isSuspended && !!normalizePhone(c.phone) && (c.subscriptionValue ?? 0) > 0)
       .map(c => ({ phone: c.phone!, msg: fillTemplate(waAuto.invoiceText, { name: c.name, city: waCityName(c), phone: c.phone || '', amount: waAmountFor(c) }) }));
@@ -2315,7 +2310,7 @@ function App() {
 
   // الفحص شبه التلقائي عند فتح الموقع — مرة واحدة لكل جلسة
   useEffect(() => {
-    if (!isAuthenticated || !waAuto.enabled || waBackendReady !== true || waAutoRan.current || customers.length === 0) return;
+    if (!isAuthenticated || !waAuto.enabled || !waConfigured || waAutoRan.current || customers.length === 0) return;
     waAutoRan.current = true;
     const today = todayISO();
     const ym = today.slice(0, 7);
@@ -2324,7 +2319,7 @@ function App() {
       if (new Date().getDate() >= 27 && waAuto.lastMonthly !== ym) await runMonthlyInvoices();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, waAuto.enabled, waBackendReady, customers.length]);
+  }, [isAuthenticated, waAuto.enabled, waConfigured, customers.length]);
 
   const openCustomerDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -5772,17 +5767,27 @@ function App() {
             <div className="wa-panel wa-auto-panel">
               <div className="wa-auto-head">
                 <div className="wa-panel-title">🤖 الأتمتة (بوت واتساب)</div>
-                <span className={`wa-backend-badge ${waBackendReady ? 'ok' : 'off'}`}>
-                  {waBackendReady === null ? 'جارٍ الفحص...' : waBackendReady ? '✅ الخادم مهيّأ' : '⚠️ الخادم غير مهيّأ'}
+                <span className={`wa-backend-badge ${waConfigured ? 'ok' : 'off'}`}>
+                  {waConfigured ? '✅ مهيّأ' : '⚠️ أدخل المفتاح'}
                 </span>
               </div>
 
-              {!waBackendReady && waBackendReady !== null && (
-                <p className="wa-auto-warn">⚠️ لن تعمل الأتمتة حتى يُضبط مفتاح واتساب على الخادم (WHATSAPP_TOKEN و WHATSAPP_INSTANCE) ويُعاد نشره.</p>
-              )}
+              {/* ربط البوت — يُخزّن في Firestore المحمي بتسجيل الدخول، لا في الكود */}
+              <div className="wa-auto-templates">
+                <div className="wa-auto-field">
+                  <label>مفتاح whatsbot (access_token)</label>
+                  <input type="password" value={waAuto.waToken} onChange={(e) => setWaAuto({ ...waAuto, waToken: e.target.value })} placeholder="مثال: 6a66c310669fa" dir="ltr" />
+                </div>
+                <div className="wa-auto-field">
+                  <label>معرّف المثيل (instance_id)</label>
+                  <input type="text" value={waAuto.waInstance} onChange={(e) => setWaAuto({ ...waAuto, waInstance: e.target.value })} placeholder="مثال: 6A66C56B9AD33" dir="ltr" />
+                </div>
+              </div>
+              <button className="btn secondary btn-sm" style={{ marginTop: 8 }} onClick={() => saveWaAuto({ waToken: waAuto.waToken.trim(), waInstance: waAuto.waInstance.trim() })}>💾 حفظ الربط</button>
+              <p className="wa-auto-warn" style={{ marginTop: 10 }}>يُخزَّن المفتاح في قاعدة البيانات المحمية بتسجيل الدخول فقط — لا يظهر في الكود ولا في المستودع. تأكد أن رقم واتساب سيرفوكس مرتبط عبر مسح QR.</p>
 
               <label className="wa-auto-toggle">
-                <input type="checkbox" checked={waAuto.enabled} disabled={!waBackendReady} onChange={(e) => saveWaAuto({ enabled: e.target.checked })} />
+                <input type="checkbox" checked={waAuto.enabled} disabled={!waConfigured} onChange={(e) => saveWaAuto({ enabled: e.target.checked })} />
                 <span>تفعيل الأتمتة (تذكير يومي + شكر عند السداد + فواتير يوم ٢٧)</span>
               </label>
 
@@ -5804,10 +5809,10 @@ function App() {
 
               <div className="wa-auto-actions">
                 <button className="btn secondary btn-sm" onClick={() => saveWaAuto({ reminderText: waAuto.reminderText, thanksText: waAuto.thanksText, invoiceText: waAuto.invoiceText })}>💾 حفظ القوالب</button>
-                <button className="btn primary btn-sm" disabled={!waBackendReady || !!waAutoBusy} onClick={() => runDailyReminders(true)}>
+                <button className="btn primary btn-sm" disabled={!waConfigured || !!waAutoBusy} onClick={() => runDailyReminders(true)}>
                   {waAutoBusy === 'daily' ? 'جارٍ الإرسال...' : '📤 إرسال تذكير اليوم الآن'}
                 </button>
-                <button className="btn warning btn-sm" disabled={!waBackendReady || !!waAutoBusy} onClick={() => runMonthlyInvoices(true)}>
+                <button className="btn warning btn-sm" disabled={!waConfigured || !!waAutoBusy} onClick={() => runMonthlyInvoices(true)}>
                   {waAutoBusy === 'monthly' ? 'جارٍ الإرسال...' : '🧾 إرسال فواتير الشهر الآن'}
                 </button>
               </div>
