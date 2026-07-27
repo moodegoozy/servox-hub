@@ -5,3 +5,7 @@ dist
 npm-debug.log*
 .firebase
 firebase-debug.log*
+# ملفات API/أسرار — لا تُرفع إطلاقاً (تحتوي مفاتيح)
+*.pdf
+.env
+.env.*

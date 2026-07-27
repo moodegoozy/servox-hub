@@ -196,6 +196,35 @@ const WA_TEMPLATES: { id: string; title: string; body: string }[] = [
 ];
 const WA_CUSTOM_KEY = 'servox_wa_custom_template';
 
+// عنوان الباك-إند (بروكسي واتساب يحمل المفتاح)
+const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL as string) || 'https://mikrotik-api-923854285496.europe-west1.run.app';
+
+// إرسال رسالة واتساب عبر الباك-إند (المفتاح يبقى في الخادم)
+const sendWhatsApp = async (number: string, message: string): Promise<boolean> => {
+  const n = normalizePhone(number);
+  if (!n || !message.trim()) return false;
+  try {
+    const res = await fetch(`${BACKEND_BASE}/whatsapp/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number: n, message }),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error('whatsapp send failed', e);
+    return false;
+  }
+};
+
+// قوالب الأتمتة الافتراضية (تُخزّن قابلة للتعديل في app_settings/whatsapp)
+const WA_AUTO_DEFAULTS = {
+  enabled: false,
+  reminderText: 'مرحباً {الاسم} 👋\nنذكّركم بسداد اشتراك الإنترنت بمبلغ {المبلغ} ﷼ لمدينة {المدينة}.\nSERVOX لخدمات الإنترنت السريع 🌐',
+  thanksText: 'شكراً لك {الاسم} 🌟\nتم استلام سداد اشتراككم بنجاح. نشكر ثقتكم بـ SERVOX لخدمات الإنترنت السريع 🌐',
+  invoiceText: 'عميلنا العزيز {الاسم} ({المدينة})\nصدرت فاتورة اشتراك هذا الشهر بمبلغ {المبلغ} ﷼.\nنرجو السداد، وشكراً لتعاونكم — SERVOX 🌐',
+};
+type WaAutoConfig = typeof WA_AUTO_DEFAULTS & { lastDaily?: string; lastMonthly?: string };
+
 // تحويل رقم الجوال إلى صيغة واتساب الدولية (السعودية افتراضاً)
 const normalizePhone = (raw?: string): string => {
   if (!raw) return '';
@@ -386,7 +415,12 @@ function App() {
   const [waQueuePos, setWaQueuePos] = useState(0);
   const [waMonth, setWaMonth] = useState(0); // 0 = الحالة العامة، 1-12 = شهر محدد
   const [waYear, setWaYear] = useState(new Date().getFullYear());
-  const [waSearch, setWaSearch] = useState(''); // بحث بالاسم أو الجوال أو IP
+  const [waSearch, setWaSearch] = useState('');
+  // أتمتة واتساب (التذكير اليومي + شكر السداد + فواتير ٢٧)
+  const [waAuto, setWaAuto] = useState<WaAutoConfig>(WA_AUTO_DEFAULTS);
+  const [waBackendReady, setWaBackendReady] = useState<boolean | null>(null);
+  const [waAutoBusy, setWaAutoBusy] = useState('');
+  const waAutoRan = useRef(false); // يمنع تشغيل الفحص التلقائي أكثر من مرة لكل جلسة // بحث بالاسم أو الجوال أو IP
   // الشات العام بين حسابات الإدارة
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [showChat, setShowChat] = useState(false);
@@ -1860,6 +1894,11 @@ function App() {
       setChatMessages(msgs);
     });
 
+    // إعدادات أتمتة واتساب
+    const unsubscribeWaAuto = onSnapshot(doc(db, 'app_settings', 'whatsapp'), (snap) => {
+      setWaAuto({ ...WA_AUTO_DEFAULTS, ...(snap.data() as Partial<WaAutoConfig> || {}) });
+    });
+
     return () => {
       unsubscribeCities();
       unsubscribeCustomers();
@@ -1868,7 +1907,14 @@ function App() {
       unsubscribeCards();
       unsubscribeTowers();
       unsubscribeChat();
+      unsubscribeWaAuto();
     };
+  }, [isAuthenticated]);
+
+  // فحص تهيئة الباك-إند لواتساب مرة واحدة
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch(`${BACKEND_BASE}/whatsapp/status`).then(r => r.json()).then(d => setWaBackendReady(!!d.configured)).catch(() => setWaBackendReady(false));
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -2201,7 +2247,14 @@ function App() {
         setSelectedCustomer(updatedCustomer);
       }
       setCustomers(customers.map(c => c.id === confirmStatusChange.customer.id ? updatedCustomer : c));
-      
+
+      // رسالة شكر تلقائية عند اكتمال السداد (إن كانت الأتمتة مفعّلة)
+      if (finalStatus === 'paid' && waAuto.enabled && confirmStatusChange.customer.phone) {
+        const cust = confirmStatusChange.customer;
+        const cityName = cities.find(ct => ct.id === cust.cityId)?.name || '';
+        sendWhatsApp(cust.phone!, fillTemplate(waAuto.thanksText, { name: cust.name, city: cityName, phone: cust.phone || '', amount: String(subscriptionValue || '') }));
+      }
+
       const statusMap: Record<string, string> = { paid: 'مدفوع', unpaid: 'غير مسدد', partial: 'جزئي', discounted: 'مدفوع بخصم' };
       setToastMessage(`تم تغيير حالة ${confirmStatusChange.customer.name} إلى ${statusMap[finalStatus]}`);
       setConfirmStatusChange(null);
@@ -2212,6 +2265,66 @@ function App() {
       console.error(error);
     }
   };
+
+  // ===== أتمتة واتساب =====
+  const saveWaAuto = async (patch: Partial<WaAutoConfig>) => {
+    try { await setDoc(doc(db, 'app_settings', 'whatsapp'), { ...waAuto, ...patch }, { merge: true }); }
+    catch (e) { setToastMessage('تعذّر حفظ الإعدادات'); console.error(e); }
+  };
+
+  // إرسال دفعة رسائل بتباعد بسيط لتقليل خطر حظر الرقم
+  const sendWaBatch = async (targets: { phone: string; msg: string }[]) => {
+    let sent = 0;
+    for (const t of targets) {
+      if (await sendWhatsApp(t.phone, t.msg)) sent++;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    return sent;
+  };
+
+  const waAmountFor = (c: Customer) => (c.subscriptionValue != null ? String(c.subscriptionValue) : '');
+  const waCityName = (c: Customer) => cities.find(ct => ct.id === c.cityId)?.name || '';
+
+  // تذكير اليوم: العملاء غير المسددين (الشهر الحالي) — استثناء الموقوف وفاتورته صفر وبلا جوال
+  const runDailyReminders = async (manual = false) => {
+    if (!waAuto.enabled && !manual) return;
+    const targets = customers
+      .filter(c => !c.isSuspended && !!normalizePhone(c.phone) && (c.subscriptionValue ?? 0) > 0 && (!c.paymentStatus || c.paymentStatus === 'unpaid'))
+      .map(c => ({ phone: c.phone!, msg: fillTemplate(waAuto.reminderText, { name: c.name, city: waCityName(c), phone: c.phone || '', amount: waAmountFor(c) }) }));
+    if (targets.length === 0) { if (manual) setToastMessage('لا يوجد عملاء غير مسددين للتذكير'); return; }
+    setWaAutoBusy('daily');
+    await saveWaAuto({ lastDaily: todayISO() }); // مطالبة مبكّرة لمنع التكرار
+    const sent = await sendWaBatch(targets);
+    setWaAutoBusy('');
+    setToastMessage(`📤 أُرسل تذكير لـ ${sent} من ${targets.length}`);
+  };
+
+  // فواتير يوم ٢٧: للجميع عدا فاتورته صفر (والموقوف وبلا جوال)
+  const runMonthlyInvoices = async (manual = false) => {
+    if (!waAuto.enabled && !manual) return;
+    const targets = customers
+      .filter(c => !c.isSuspended && !!normalizePhone(c.phone) && (c.subscriptionValue ?? 0) > 0)
+      .map(c => ({ phone: c.phone!, msg: fillTemplate(waAuto.invoiceText, { name: c.name, city: waCityName(c), phone: c.phone || '', amount: waAmountFor(c) }) }));
+    if (targets.length === 0) { if (manual) setToastMessage('لا يوجد عملاء لإرسال الفواتير'); return; }
+    setWaAutoBusy('monthly');
+    await saveWaAuto({ lastMonthly: new Date().toISOString().slice(0, 7) });
+    const sent = await sendWaBatch(targets);
+    setWaAutoBusy('');
+    setToastMessage(`📤 أُرسلت فواتير لـ ${sent} من ${targets.length}`);
+  };
+
+  // الفحص شبه التلقائي عند فتح الموقع — مرة واحدة لكل جلسة
+  useEffect(() => {
+    if (!isAuthenticated || !waAuto.enabled || waBackendReady !== true || waAutoRan.current || customers.length === 0) return;
+    waAutoRan.current = true;
+    const today = todayISO();
+    const ym = today.slice(0, 7);
+    (async () => {
+      if (waAuto.lastDaily !== today) await runDailyReminders();
+      if (new Date().getDate() >= 27 && waAuto.lastMonthly !== ym) await runMonthlyInvoices();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, waAuto.enabled, waBackendReady, customers.length]);
 
   const openCustomerDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -5653,6 +5766,54 @@ function App() {
                 <h2 className="wa-hero-title">رسائل واتساب للعملاء</h2>
                 <p className="wa-hero-subtitle">ذكّر عملاءك بالسداد برسالة جاهزة تُعبّأ تلقائياً باسم العميل ومدينته وجواله والمبلغ</p>
               </div>
+            </div>
+
+            {/* لوحة الأتمتة */}
+            <div className="wa-panel wa-auto-panel">
+              <div className="wa-auto-head">
+                <div className="wa-panel-title">🤖 الأتمتة (بوت واتساب)</div>
+                <span className={`wa-backend-badge ${waBackendReady ? 'ok' : 'off'}`}>
+                  {waBackendReady === null ? 'جارٍ الفحص...' : waBackendReady ? '✅ الخادم مهيّأ' : '⚠️ الخادم غير مهيّأ'}
+                </span>
+              </div>
+
+              {!waBackendReady && waBackendReady !== null && (
+                <p className="wa-auto-warn">⚠️ لن تعمل الأتمتة حتى يُضبط مفتاح واتساب على الخادم (WHATSAPP_TOKEN و WHATSAPP_INSTANCE) ويُعاد نشره.</p>
+              )}
+
+              <label className="wa-auto-toggle">
+                <input type="checkbox" checked={waAuto.enabled} disabled={!waBackendReady} onChange={(e) => saveWaAuto({ enabled: e.target.checked })} />
+                <span>تفعيل الأتمتة (تذكير يومي + شكر عند السداد + فواتير يوم ٢٧)</span>
+              </label>
+
+              <div className="wa-auto-templates">
+                <div className="wa-auto-field">
+                  <label>قالب التذكير اليومي (لغير المسددين)</label>
+                  <textarea rows={3} value={waAuto.reminderText} onChange={(e) => setWaAuto({ ...waAuto, reminderText: e.target.value })} />
+                </div>
+                <div className="wa-auto-field">
+                  <label>قالب الشكر عند السداد</label>
+                  <textarea rows={3} value={waAuto.thanksText} onChange={(e) => setWaAuto({ ...waAuto, thanksText: e.target.value })} />
+                </div>
+                <div className="wa-auto-field">
+                  <label>قالب فواتير يوم ٢٧ (يُستثنى من فاتورته 0)</label>
+                  <textarea rows={3} value={waAuto.invoiceText} onChange={(e) => setWaAuto({ ...waAuto, invoiceText: e.target.value })} />
+                </div>
+              </div>
+              <div className="wa-vars-hint">المتغيّرات: <code>{'{الاسم}'}</code> <code>{'{المدينة}'}</code> <code>{'{الجوال}'}</code> <code>{'{المبلغ}'}</code></div>
+
+              <div className="wa-auto-actions">
+                <button className="btn secondary btn-sm" onClick={() => saveWaAuto({ reminderText: waAuto.reminderText, thanksText: waAuto.thanksText, invoiceText: waAuto.invoiceText })}>💾 حفظ القوالب</button>
+                <button className="btn primary btn-sm" disabled={!waBackendReady || !!waAutoBusy} onClick={() => runDailyReminders(true)}>
+                  {waAutoBusy === 'daily' ? 'جارٍ الإرسال...' : '📤 إرسال تذكير اليوم الآن'}
+                </button>
+                <button className="btn warning btn-sm" disabled={!waBackendReady || !!waAutoBusy} onClick={() => runMonthlyInvoices(true)}>
+                  {waAutoBusy === 'monthly' ? 'جارٍ الإرسال...' : '🧾 إرسال فواتير الشهر الآن'}
+                </button>
+              </div>
+              <p className="wa-auto-meta">
+                آخر تذكير: {waAuto.lastDaily || '—'} • آخر فواتير شهرية: {waAuto.lastMonthly || '—'}
+              </p>
             </div>
 
             {/* القالب */}

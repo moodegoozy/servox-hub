@@ -255,5 +255,48 @@ app.post('/mikrotik/profiles', async (req, res) => {
   }
 });
 
+// ===== واتساب عبر بوابة whatsbot.at =====
+// المفتاح والمثيل يُقرآن من متغيّرات البيئة (Secret) ولا يُخزّنان في الكود إطلاقاً.
+// اضبط على Cloud Run: WHATSAPP_TOKEN و WHATSAPP_INSTANCE
+const WHATSBOT_URL = "https://whatsbot.at/api/send";
+
+// هل واتساب مهيّأ؟ (تستخدمه الواجهة لإظهار/إخفاء الأتمتة)
+app.get("/whatsapp/status", (_req, res) => {
+  res.json({ configured: !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_INSTANCE) });
+});
+
+// إرسال رسالة واتساب (نص أو وسائط) — البروكسي يحمل المفتاح
+app.post("/whatsapp/send", async (req, res) => {
+  const token = process.env.WHATSAPP_TOKEN;
+  const instance = process.env.WHATSAPP_INSTANCE;
+  if (!token || !instance) {
+    return res.status(500).json({ error: "whatsapp not configured (missing WHATSAPP_TOKEN/WHATSAPP_INSTANCE)" });
+  }
+  const { number, message, mediaUrl, filename } = req.body as {
+    number?: string; message?: string; mediaUrl?: string; filename?: string;
+  };
+  if (!number || (!message && !mediaUrl)) {
+    return res.status(400).json({ error: "missing number or message" });
+  }
+  try {
+    const body: Record<string, unknown> = {
+      number: String(number).replace(/\D/g, ""),
+      type: mediaUrl ? "media" : "text",
+      message: message || "",
+      instance_id: instance,
+      access_token: token,
+    };
+    if (mediaUrl) body.media_url = mediaUrl;
+    if (filename) body.filename = filename;
+    const { data } = await axios.post(WHATSBOT_URL, body, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 20000,
+    });
+    return res.json({ success: true, result: data });
+  } catch (err: any) {
+    return res.status(502).json({ error: err?.response?.data || err.message || "send failed" });
+  }
+});
+
 const port = Number(process.env.PORT) || 8080;
 app.listen(port, () => console.log("listening on", port));
