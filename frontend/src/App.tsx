@@ -198,17 +198,20 @@ const WA_CUSTOM_KEY = 'servox_wa_custom_template';
 
 // إرسال رسالة واتساب مباشرة عبر بوابة whatsbot (بدون خادم).
 // المفتاح والمثيل يُقرآن من الإعدادات (Firestore المحمي بتسجيل الدخول)، لا من الكود.
-// نستخدم GET + mode:'no-cors' لتجاوز حاجز CORS (إرسال دون قراءة الرد).
-const sendWhatsApp = async (number: string, message: string, token?: string, instance?: string): Promise<boolean> => {
+// whatsbot يسمح بـ CORS (Access-Control-Allow-Origin: *) فنقرأ الرد الحقيقي (نجاح/خطأ).
+const sendWhatsApp = async (number: string, message: string, token?: string, instance?: string): Promise<{ ok: boolean; error?: string }> => {
   const n = normalizePhone(number);
-  if (!n || !message.trim() || !token || !instance) return false;
+  if (!n) return { ok: false, error: 'رقم غير صالح' };
+  if (!message.trim()) return { ok: false, error: 'رسالة فارغة' };
+  if (!token || !instance) return { ok: false, error: 'المفتاح أو المثيل غير مُدخل' };
   const url = `https://whatsbot.at/api/send?number=${encodeURIComponent(n)}&type=text&message=${encodeURIComponent(message)}&instance_id=${encodeURIComponent(instance)}&access_token=${encodeURIComponent(token)}`;
   try {
-    await fetch(url, { mode: 'no-cors' });
-    return true;
-  } catch (e) {
-    console.error('whatsapp send failed', e);
-    return false;
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({} as any));
+    if (data.status === 'success') return { ok: true };
+    return { ok: false, error: data.message || `HTTP ${res.status}` };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'تعذّر الاتصال بـ whatsbot' };
   }
 };
 
@@ -2268,11 +2271,13 @@ function App() {
   // إرسال دفعة رسائل بتباعد بسيط لتقليل خطر حظر الرقم
   const sendWaBatch = async (targets: { phone: string; msg: string }[]) => {
     let sent = 0;
+    let lastError = '';
     for (const t of targets) {
-      if (await sendWhatsApp(t.phone, t.msg, waAuto.waToken, waAuto.waInstance)) sent++;
+      const r = await sendWhatsApp(t.phone, t.msg, waAuto.waToken, waAuto.waInstance);
+      if (r.ok) sent++; else lastError = r.error || lastError;
       await new Promise(r => setTimeout(r, 1500));
     }
-    return sent;
+    return { sent, lastError };
   };
 
   const waAmountFor = (c: Customer) => (c.subscriptionValue != null ? String(c.subscriptionValue) : '');
@@ -2288,9 +2293,9 @@ function App() {
     if (targets.length === 0) { if (manual) setToastMessage('لا يوجد عملاء غير مسددين للتذكير'); return; }
     setWaAutoBusy('daily');
     await saveWaAuto({ lastDaily: todayISO() }); // مطالبة مبكّرة لمنع التكرار
-    const sent = await sendWaBatch(targets);
+    const { sent, lastError } = await sendWaBatch(targets);
     setWaAutoBusy('');
-    setToastMessage(`📤 أُرسل تذكير لـ ${sent} من ${targets.length}`);
+    setToastMessage(sent === 0 && lastError ? `❌ فشل الإرسال: ${lastError}` : `📤 أُرسل تذكير لـ ${sent} من ${targets.length}`);
   };
 
   // فواتير يوم ٢٧: للجميع عدا فاتورته صفر (والموقوف وبلا جوال)
@@ -2303,9 +2308,25 @@ function App() {
     if (targets.length === 0) { if (manual) setToastMessage('لا يوجد عملاء لإرسال الفواتير'); return; }
     setWaAutoBusy('monthly');
     await saveWaAuto({ lastMonthly: new Date().toISOString().slice(0, 7) });
-    const sent = await sendWaBatch(targets);
+    const { sent, lastError } = await sendWaBatch(targets);
     setWaAutoBusy('');
-    setToastMessage(`📤 أُرسلت فواتير لـ ${sent} من ${targets.length}`);
+    setToastMessage(sent === 0 && lastError ? `❌ فشل الإرسال: ${lastError}` : `📤 أُرسلت فواتير لـ ${sent} من ${targets.length}`);
+  };
+
+  // اختبار اتصال البوت — يخبرك إن كان المثيل صالحاً والرقم مرتبطاً
+  const testWaConnection = async () => {
+    if (!waConfigured) { setToastMessage('أدخل المفتاح والمثيل أولاً'); return; }
+    setWaAutoBusy('test');
+    try {
+      const res = await fetch(`https://whatsbot.at/api/get_groups?instance_id=${encodeURIComponent(waAuto.waInstance)}&access_token=${encodeURIComponent(waAuto.waToken)}`);
+      const data = await res.json().catch(() => ({} as any));
+      if (data.status === 'success') setToastMessage('✅ الاتصال سليم والرقم مرتبط');
+      else setToastMessage(`❌ ${data.message || 'تعذّر الاتصال — تأكد من ربط الرقم عبر QR'}`);
+    } catch {
+      setToastMessage('❌ تعذّر الوصول لبوابة whatsbot');
+    } finally {
+      setWaAutoBusy('');
+    }
   };
 
   // الفحص شبه التلقائي عند فتح الموقع — مرة واحدة لكل جلسة
@@ -5783,7 +5804,12 @@ function App() {
                   <input type="text" value={waAuto.waInstance} onChange={(e) => setWaAuto({ ...waAuto, waInstance: e.target.value })} placeholder="مثال: 6A66C56B9AD33" dir="ltr" />
                 </div>
               </div>
-              <button className="btn secondary btn-sm" style={{ marginTop: 8 }} onClick={() => saveWaAuto({ waToken: waAuto.waToken.trim(), waInstance: waAuto.waInstance.trim() })}>💾 حفظ الربط</button>
+              <div className="wa-auto-actions" style={{ marginTop: 8 }}>
+                <button className="btn secondary btn-sm" onClick={() => saveWaAuto({ waToken: waAuto.waToken.trim(), waInstance: waAuto.waInstance.trim() })}>💾 حفظ الربط</button>
+                <button className="btn primary btn-sm" disabled={!waConfigured || !!waAutoBusy} onClick={testWaConnection}>
+                  {waAutoBusy === 'test' ? 'جارٍ الفحص...' : '🔌 اختبار الاتصال'}
+                </button>
+              </div>
               <p className="wa-auto-warn" style={{ marginTop: 10 }}>يُخزَّن المفتاح في قاعدة البيانات المحمية بتسجيل الدخول فقط — لا يظهر في الكود ولا في المستودع. تأكد أن رقم واتساب سيرفوكس مرتبط عبر مسح QR.</p>
 
               <label className="wa-auto-toggle">
